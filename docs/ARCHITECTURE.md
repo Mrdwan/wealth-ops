@@ -8,16 +8,16 @@ A cloud-native, automated trading system for a **Solo Trader (Irish Tax Resident
 - **Hybrid AI Model:** "Hard Guards, Soft Skills." We enforce Risk Rules (Hard), AI learns Entry Patterns (Soft).
 
 ## 2. The Cloud Stack (AWS)
-- **Ingest & Scout:** AWS Lambda (Python). Fetches data/news daily.
-- **The Specialist (Training):** AWS Fargate (ECS). Spins up, trains XGBoost models for each asset, saves to S3, shuts down.
-- **The Judge & Execution:** AWS Lambda. Reads S3 models, predicts, calls LLM, executes trade.
+- **Ingest & Scout:** AWS Lambda (Daily Drip) & Fargate (Bulk Bootstrap). Features "Smart Gap-Fill".
+- **The Specialist (Training):** AWS Fargate (ECS). Spins up, trains XGBoost models for each asset.
+- **The Judge & Execution:** AWS Lambda. Reads S3 models, predicts, calls LLM API, executes trade.
 - **State Store:** AWS DynamoDB (Ledger, Holdings, Config).
 - **Data Lake:** AWS S3 (Parquet History, Model Artifacts).
 - **Orchestration:** AWS Step Functions (Visual Workflow).
-- **Data Sources (Bootstrap + Drip Strategy):**
-    - **Bootstrap:** Tiingo Free Tier (One-time historical backfill, 50+ years).
-    - **Daily Drip:** Yahoo Finance (Ongoing daily candle updates, $0/month).
-    - **Rebuild:** Tiingo Paid ($30, on-demand if data corruption detected).
+- **Data Sources:** (See `specs/data-ingestion-strategy.md`)
+    - **Primary:** Tiingo (Official API).
+    - **Fallback:** Yahoo Finance (yfinance).
+    - **Resiliency:** Auto-failover and gap detection.
 
 ## 3. The "One-Asset, One-Model" Policy
 We train a unique XGBoost Classifier for each active asset in `DynamoDB:Config`.
@@ -51,11 +51,10 @@ We require **Three Green Lights** to enter a trade. If any light is RED, we stay
 Before execution, we apply **Correlation Controls**:
 1.  **Sector Limit:** Max **1 Position** per Sector (e.g., Tech, Finance, Energy).
     -   *If multiple signals:* Pick the one with the highest Probability Score.
-2.  **News Veto (LLM Sentiment Check):**
-    -   **Daily Scanning:** FinBERT (Local, free). Fast sentiment classification.
-    -   **Pre-Trade Verification:** DeepSeek-V3 API (~$0.0001/call). Only triggered on BUY/SELL decisions.
-    -   **Fallback:** Gemini Flash (if DeepSeek fails).
-    -   **Final Fallback:** Skip the trade (if all fail).
+2.  **News Veto (LLM Sentiment Check):** (See `specs/ml-compute-strategy.md`)
+    -   **Mechanism:** DeepSeek-V3 or Gemini Flash API.
+    -   **Why:** Cheaper and higher quality than running FinBERT on Lambda.
+    -   **Trigger:** Only analyzed if a BUY signal is present.
 
 ### D. The Execution (Trade Management)
 -   **Position Sizing (Risk-Based):**
