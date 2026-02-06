@@ -43,7 +43,7 @@ The system operates as a distributed "Committee of Agents" on AWS:
 * **Storage:** S3 (Parquet Data Lake).
 
 **Application:**
-* **Language:** Python 3.11+.
+* **Language:** Python 3.13+.
 * **ML Engine:** XGBoost.
 * **Quality:** `pytest` (100% Branch Coverage), `mypy` (Strict Typing).
 
@@ -55,6 +55,7 @@ This project follows the **Context-First** development protocol.
 
 ```text
 wealth-ops-v2/
+├── .devcontainer/          # 🐳 Dev Container (Docker-based dev environment)
 ├── .agent/                 # 🤖 The AI Context Kernel
 │   └── rules/              # The "Laws" (Constitution, Code Standards)
 ├── docs/                   # 📜 The Truth (Architecture & Roadmap)

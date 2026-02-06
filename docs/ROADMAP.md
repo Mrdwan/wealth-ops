@@ -1,9 +1,9 @@
 # 🗺️ Wealth-Ops v2.0 Roadmap
 
 ## 🟢 Phase 0: The "Iron" Foundation (Current Focus)
-- [ ] **Step 0.1: Context & Rules.** (Establish the AI Workflow).
-- [ ] **Step 0.2: Infrastructure as Code.** Setup Terraform/CDK for S3, DynamoDB, ECR, and Step Functions.
-- [ ] **Step 0.3: CI/CD Pipeline.** GitHub Actions to lint, test, and deploy Lambda/Fargate images.
+- [x] **Step 0.1: Context & Rules.** (Establish the AI Workflow).
+- [x] **Step 0.2: Infrastructure as Code.** Setup Terraform/CDK for S3, DynamoDB, ECR, and Step Functions.
+- [x] **Step 0.3: CI/CD Pipeline.** GitHub Actions to lint, test, and deploy Lambda/Fargate images.
 
 ## 🟡 Phase 1: The Data Engine & Visibility
 - [ ] **Step 1.1: Database Schema.** Define DynamoDB tables for `Config` (Assets to trade), `Ledger` (History), and `Portfolio` (Current State).
