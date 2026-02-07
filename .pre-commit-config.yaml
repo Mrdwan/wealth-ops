@@ -46,3 +46,12 @@ repos:
         language: system
         files: ^infra/
         pass_filenames: false
+
+      # Pytest in Docker - runs on any Python file change
+      - id: pytest-docker
+        name: Pytest (Docker)
+        entry: docker compose --profile test run --rm --build test pytest -v --tb=short
+        language: system
+        files: \.(py)$
+        pass_filenames: false
+        stages: [pre-commit]

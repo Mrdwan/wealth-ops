@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker
+.docker/
+
+# Node
+node_modules/
+
+# CDK
+cdk.out/
+
+# Coverage and test artifacts
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Local data
+data/
+*.parquet
+
+# Docs build
+docs/_build/

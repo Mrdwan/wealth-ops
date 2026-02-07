@@ -26,10 +26,12 @@ All AWS services are emulated locally via **LocalStack** for development and tes
 |---------|-----------|---------|
 | `dev` | `wealth-ops-dev` | Python 3.13 + Poetry dev environment |
 | `localstack` | `wealth-ops-localstack` | Emulates S3, DynamoDB locally |
+| `test` | `wealth-ops-test` | Lightweight pytest runner (pre-commit) |
 
 - **Config:** `docker-compose.yml` + `.devcontainer/devcontainer.json`
 - **AWS Endpoint:** `http://localstack:4566` (auto-configured via env vars)
 - **Persistence:** LocalStack data persists between restarts
+- **Pre-commit:** Tests run automatically via `pytest-docker` hook (uses `moto` mocking)
 
 ## 3. The "One-Asset, One-Model" Policy
 We train a unique XGBoost Classifier for each active asset in `DynamoDB:Config`.

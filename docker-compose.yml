@@ -48,6 +48,27 @@ services:
     networks:
       - wealth-ops-network
 
+  # =============================================================================
+  # Test Runner - Lightweight container for pytest (pre-commit hook)
+  # =============================================================================
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wealth-ops-test
+    volumes:
+      - .:/app:cached
+    working_dir: /app
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      # Use moto for mocking - no LocalStack needed
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=eu-west-1
+    profiles:
+      - test # Only runs when explicitly requested
+
 networks:
   wealth-ops-network:
     driver: bridge

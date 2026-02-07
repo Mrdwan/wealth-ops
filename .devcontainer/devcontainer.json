@@ -1,32 +1,28 @@
 {
     "name": "Wealth-Ops Dev",
-    "dockerComposeFile": ["../docker-compose.yml"],
+    "dockerComposeFile": [
+        "../docker-compose.yml"
+    ],
     "service": "dev",
     "workspaceFolder": "/workspaces/wealth-ops",
-    "features": {
-        "ghcr.io/devcontainers/features/aws-cli:1": {},
-        "ghcr.io/devcontainers/features/node:1": {
-            "version": "lts"
-        }
-    },
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-python.python",
                 "ms-python.mypy-type-checker",
-                "charliermarsh.ruff",
-                "amazonwebservices.aws-toolkit-vscode"
+                "charliermarsh.ruff"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
                 "python.testing.pytestEnabled": true,
-                "mypy-type-checker.args": ["--strict"],
                 "editor.formatOnSave": true
             }
         }
     },
-    "postCreateCommand": "poetry install --with infra && npm install -g aws-cdk",
+    "postCreateCommand": "poetry install --with infra",
     "shutdownAction": "stopCompose",
-    "forwardPorts": [4566],
+    "forwardPorts": [
+        4566
+    ],
     "remoteUser": "vscode"
 }
