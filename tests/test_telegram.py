@@ -4,7 +4,9 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
+from botocore.exceptions import ClientError
 
 from src.modules.notifications.telegram import DailyPulse, TelegramNotifier
 from src.modules.regime.filter import MarketStatus
@@ -140,6 +142,146 @@ class TestTelegramNotifier:
             config=config_no_telegram,
             dynamodb_client=MagicMock(),
         )
+        result = notifier._send_message("Test message")
+
+        assert result is False
+
+    @patch("src.modules.notifications.telegram.httpx.Client")
+    def test_send_daily_pulse_success(
+        self,
+        mock_client_class: MagicMock,
+        config: Config,
+    ) -> None:
+        """Test successful send_daily_pulse flow."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.side_effect = [
+            {"Item": {"key": {"S": "market_status"}, "value": {"S": "BULL"}}},
+            {
+                "Item": {
+                    "asset_type": {"S": "CASH"},
+                    "ticker": {"S": "EUR"},
+                    "quantity": {"N": "5000"},
+                }
+            },
+        ]
+        mock_dynamodb.query.return_value = {"Count": 2}
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_class.return_value = mock_client
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier.send_daily_pulse()
+
+        assert result is True
+
+    def test_get_market_status_no_value_key(self, config: Config) -> None:
+        """Test _get_market_status returns UNKNOWN when item has no value key."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.return_value = {
+            "Item": {"key": {"S": "market_status"}}
+        }
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier._get_market_status()
+
+        assert result == MarketStatus.UNKNOWN
+
+    def test_get_cash_balance_no_quantity_key(self, config: Config) -> None:
+        """Test _get_cash_balance returns Decimal('0') when item has no quantity key."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.return_value = {
+            "Item": {"asset_type": {"S": "CASH"}, "ticker": {"S": "EUR"}}
+        }
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier._get_cash_balance()
+
+        assert result == Decimal("0")
+
+
+class TestTelegramErrorHandling:
+    """Tests for error handling in TelegramNotifier."""
+
+    def test_send_daily_pulse_exception_returns_false(self, config: Config) -> None:
+        """Test send_daily_pulse returns False when gathering data fails."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.side_effect = Exception("Unexpected error")
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier.send_daily_pulse()
+
+        assert result is False
+
+    def test_get_market_status_client_error(self, config: Config) -> None:
+        """Test _get_market_status returns UNKNOWN on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}},
+            "GetItem",
+        )
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier._get_market_status()
+
+        assert result == MarketStatus.UNKNOWN
+
+    def test_get_market_status_invalid_value(self, config: Config) -> None:
+        """Test _get_market_status returns UNKNOWN for invalid enum value."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.return_value = {
+            "Item": {"key": {"S": "market_status"}, "value": {"S": "INVALID_STATUS"}}
+        }
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier._get_market_status()
+
+        assert result == MarketStatus.UNKNOWN
+
+    def test_get_cash_balance_client_error(self, config: Config) -> None:
+        """Test _get_cash_balance returns Decimal('0') on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}},
+            "GetItem",
+        )
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier._get_cash_balance()
+
+        assert result == Decimal("0")
+
+    def test_count_open_positions_client_error(self, config: Config) -> None:
+        """Test _count_open_positions returns 0 on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.query.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}},
+            "Query",
+        )
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=mock_dynamodb)
+        result = notifier._count_open_positions()
+
+        assert result == 0
+
+    @patch("src.modules.notifications.telegram.httpx.Client")
+    def test_send_message_http_error(
+        self,
+        mock_client_class: MagicMock,
+        config: Config,
+    ) -> None:
+        """Test _send_message returns False on HTTP error."""
+        mock_client = MagicMock()
+        mock_client.post.side_effect = httpx.HTTPError("Connection refused")
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_class.return_value = mock_client
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=MagicMock())
         result = notifier._send_message("Test message")
 
         assert result is False

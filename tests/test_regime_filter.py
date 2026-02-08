@@ -3,8 +3,10 @@
 from datetime import date
 from unittest.mock import MagicMock
 
+import numpy as np
 import pandas as pd
 import pytest
+from botocore.exceptions import ClientError
 
 from src.modules.regime.filter import MarketStatus, RegimeFilter
 from src.shared.config import Config
@@ -142,3 +144,118 @@ class TestRegimeFilter:
         status = filter.get_current_status()
 
         assert status == MarketStatus.BULL
+
+
+class TestRegimeFilterErrorHandling:
+    """Tests for error handling in RegimeFilter."""
+
+    def test_evaluate_exception_returns_unknown(self, config: Config) -> None:
+        """Test evaluate returns UNKNOWN when provider raises exception."""
+        mock_provider = MagicMock()
+        mock_provider.get_daily_candles.side_effect = Exception("Network error")
+
+        mock_dynamodb = MagicMock()
+
+        regime_filter = RegimeFilter(
+            config=config,
+            provider=mock_provider,
+            dynamodb_client=mock_dynamodb,
+        )
+
+        status = regime_filter.evaluate()
+
+        assert status == MarketStatus.UNKNOWN
+
+    def test_get_current_status_no_value_key(self, config: Config) -> None:
+        """Test get_current_status returns UNKNOWN when item has no value key."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.return_value = {
+            "Item": {"key": {"S": "market_status"}}
+        }
+
+        regime_filter = RegimeFilter(
+            config=config,
+            provider=MagicMock(),
+            dynamodb_client=mock_dynamodb,
+        )
+
+        status = regime_filter.get_current_status()
+
+        assert status == MarketStatus.UNKNOWN
+
+    def test_get_current_status_client_error(self, config: Config) -> None:
+        """Test get_current_status returns UNKNOWN on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}},
+            "GetItem",
+        )
+
+        regime_filter = RegimeFilter(
+            config=config,
+            provider=MagicMock(),
+            dynamodb_client=mock_dynamodb,
+        )
+
+        status = regime_filter.get_current_status()
+
+        assert status == MarketStatus.UNKNOWN
+
+    def test_get_current_status_invalid_value(self, config: Config) -> None:
+        """Test get_current_status returns UNKNOWN for invalid enum value."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.return_value = {
+            "Item": {"key": {"S": "market_status"}, "value": {"S": "INVALID"}}
+        }
+
+        regime_filter = RegimeFilter(
+            config=config,
+            provider=MagicMock(),
+            dynamodb_client=mock_dynamodb,
+        )
+
+        status = regime_filter.get_current_status()
+
+        assert status == MarketStatus.UNKNOWN
+
+    def test_calculate_regime_nan_sma_returns_unknown(self, config: Config) -> None:
+        """Test UNKNOWN when SMA200 is NaN due to missing data."""
+        # 200 rows but one NaN close value makes rolling(200).mean() NaN
+        dates = [date(2024, 1, 1) + pd.Timedelta(days=i) for i in range(200)]
+        closes = [100.0 + i for i in range(200)]
+        closes[50] = np.nan  # One NaN → rolling window can't compute mean
+
+        df = pd.DataFrame({"close": closes}, index=dates)
+        df.index.name = "date"
+
+        mock_provider = MagicMock()
+        mock_provider.get_daily_candles.return_value = df
+
+        mock_dynamodb = MagicMock()
+
+        regime_filter = RegimeFilter(
+            config=config,
+            provider=mock_provider,
+            dynamodb_client=mock_dynamodb,
+        )
+
+        status = regime_filter.evaluate()
+
+        assert status == MarketStatus.UNKNOWN
+
+    def test_update_status_client_error_reraises(self, config: Config) -> None:
+        """Test _update_status re-raises ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.put_item.side_effect = ClientError(
+            {"Error": {"Code": "ConditionalCheckFailedException", "Message": "failed"}},
+            "PutItem",
+        )
+
+        regime_filter = RegimeFilter(
+            config=config,
+            provider=MagicMock(),
+            dynamodb_client=mock_dynamodb,
+        )
+
+        with pytest.raises(ClientError):
+            regime_filter._update_status(MarketStatus.BULL)

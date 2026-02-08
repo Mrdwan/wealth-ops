@@ -134,3 +134,30 @@ class TestTiingoProvider:
             )
 
         assert "Tiingo" in str(exc_info.value)
+
+    @patch("src.modules.data.providers.tiingo.httpx.Client")
+    def test_get_daily_candles_request_error(
+        self,
+        mock_client_class: MagicMock,
+        provider: TiingoProvider,
+    ) -> None:
+        """Test network/connection error raises ProviderError."""
+        import httpx
+
+        mock_client = MagicMock()
+        mock_client.get.side_effect = httpx.RequestError(
+            "Connection timeout",
+            request=MagicMock(),
+        )
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_class.return_value = mock_client
+
+        with pytest.raises(ProviderError) as exc_info:
+            provider.get_daily_candles(
+                ticker="AAPL",
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 3),
+            )
+
+        assert "Tiingo" in str(exc_info.value)

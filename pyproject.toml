@@ -49,4 +49,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=src --cov-branch --cov-report=term-missing"
+addopts = "--cov=src --cov-branch --cov-report=term-missing --cov-fail-under=100"

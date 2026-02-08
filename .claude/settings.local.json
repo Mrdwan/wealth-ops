@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/radwan/dev/wealth-ops status tests/test_config.py)"
+    ]
+  }
+}

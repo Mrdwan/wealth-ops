@@ -4,7 +4,8 @@ FROM python:3.13-slim
 # Install Poetry
 ENV POETRY_HOME="/opt/poetry" \
     POETRY_VERSION="1.8.2" \
-    POETRY_VIRTUALENVS_CREATE=false
+    POETRY_VIRTUALENVS_CREATE=false \
+    PYTHONPATH=/app
 
 RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 
@@ -14,7 +15,8 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 
 # Install only main + test dependencies (no infra/CDK)
-RUN poetry install --only main,dev --no-interaction --no-ansi
+# No root install needed — volume mount provides source at runtime, PYTHONPATH makes it importable
+RUN poetry install --only main,dev --no-root --no-interaction --no-ansi
 
 # Default command: run pytest
 CMD ["pytest", "-v", "--tb=short"]
