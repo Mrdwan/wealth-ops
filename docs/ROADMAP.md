@@ -1,121 +1,297 @@
-# 🗺️ Wealth-Ops v2.0 Roadmap
+# 🗺️ Wealth-Ops v3.0 Roadmap
 
-## ✅ Phase 0: The "Iron" Foundation
-- [x] **Step 0.1: Context & Rules.** (Establish the AI Workflow).
-- [x] **Step 0.2: Infrastructure as Code.** Setup Terraform/CDK for S3, DynamoDB, ECR, and Step Functions.
+## ✅ Phase 0: The "Iron" Foundation (Carried from v2.0)
+- [x] **Step 0.1: Context & Rules.** AI Workflow established. Constitution documented.
+- [x] **Step 0.2: Infrastructure as Code.** CDK for S3, DynamoDB, ECR, Step Functions.
 - [x] **Step 0.3: CI/CD Pipeline.** GitHub Actions to lint, test, and deploy Lambda/Fargate images.
-- [x] **Step 0.4: Local Dev Environment.** Docker Compose with DevContainer + LocalStack (S3/DynamoDB emulation).
+- [x] **Step 0.4: Local Dev Environment.** Docker Compose with DevContainer + LocalStack.
 
-## 🟢 Phase 1: The Data Engine & Visibility (Current Focus)
-- [x] **Step 1.1: Database Schema.** Define DynamoDB tables for `Config` (Assets to trade), `Ledger` (History), and `Portfolio` (Current State).
-- [x] **Step 1.2: Market Data Engine.** (See `specs/data-ingestion-strategy.md`)
-  - **Provider Pattern:** Primary: Tiingo (Official) -> Fallback: Yahoo Finance.
-  - **Gap-Fill Logic:** Orchestrator Lambda detects and heals missing dates.
-  - **Bootstrap (Bulk):** Fargate Task for initial 50-year backfill (to avoid Lambda timeouts).
+## ✅ Phase 1: The Data Engine & Visibility (Carried from v2.0, Enhanced)
+- [x] **Step 1.1: Database Schema.** DynamoDB tables for Config, Ledger, Portfolio.
+- [x] **Step 1.2: Market Data Engine (Tiingo Primary).**
+  - Provider Pattern: Primary: Tiingo → Fallback: Yahoo Finance (stocks).
+  - Gap-Fill Logic: Orchestrator Lambda detects and heals missing dates.
+  - Bootstrap: Fargate Task for initial 10-year backfill.
 - [x] **Step 1.3: The Regime Filter (Circuit Breaker).**
-  - Logic: If S&P500 < 200-day MA, write `market_status: BEAR` to DynamoDB.
-- [x] **Step 1.4: The Daily Briefing (Notifications).**
-  - **Tool:** Telegram Bot (Simple Webhook).
-  - **Goal:** Receive a daily "Pulse Check" (Market Status + Cash Position) every morning at 09:00.
+  - SPY < 200-day MA → `market_status: BEAR` in DynamoDB.
+- [x] **Step 1.4: The Daily Briefing (Telegram, One-Way).**
+  - Telegram Bot webhook. Daily "Pulse Check" at 09:00 UTC.
 - [x] **Step 1.5: Lambda Entry Points & Schedulers.**
-  - Deploy Lambda handlers for DataManager, RegimeFilter, and TelegramNotifier.
-  - CloudWatch Event Rules for daily triggers (23:00 UTC data ingestion, 09:00 UTC pulse).
+  - Handlers for DataManager, RegimeFilter, TelegramNotifier.
+  - CloudWatch Events: 23:00 UTC data ingest, 09:00 UTC pulse.
 
-## 🔴 Phase 2: The Alpha Specialist (Feature Engineering & ML, Multi-Asset)
-- [ ] **Step 2.1: Asset Profile Schema.**
-  - Add profile fields to `DynamoDB:Config`: `asset_class`, `regime_index`, `regime_direction`, `vix_guard`, `event_guard`, `volume_features`, `benchmark_index`, `concentration_group`.
-  - Pre-populate with EQUITY, COMMODITY_HAVEN, COMMODITY_CYCLICAL profiles. See `ARCHITECTURE.md` Section 3.1.
-  - FOREX profile defined in schema but **not activated** (placeholder for Phase 5).
-- [ ] **Step 2.2: Base Technical Features (11 Features, All Classes).**
-  - Implement on **1-Day candles**: RSI (14), EMA_8, EMA_20, EMA_50, MACD Histogram, ADX (14), ATR (14), Upper Wick Ratio, Lower Wick Ratio, EMA Fan, Distance from 20d Low.
-  - Edge case: if `(High - Low) == 0`, set both wick ratios to `0.0`.
-  - **Profile-agnostic.** These 11 features are computed for every asset regardless of class.
-- [ ] **Step 2.3: Class-Specific Features.**
-  - **OBV + Volume Ratio:** Computed only when `volume_features = true` in the asset's profile. Applies to EQUITY and COMMODITY (ETF exchange volume). Excluded for FOREX (no centralized volume).
-  - **Relative Strength:** `rs_ratio = (Asset_Close / Benchmark_Close)`, normalized to rolling 20-day z-score. Benchmark set by profile: `SPY` for equities, `DXY` for commodities and Forex.
-  - **Feature Count:** 14 for EQUITY/COMMODITY, 12 for FOREX.
-- [ ] **Step 2.4: Market-Level Data Ingestion (VIX + SPY + DXY).**
-  - Add `^VIX` (CBOE Volatility Index), `SPY`, and **`DXY`** (US Dollar Index — via `UUP` ETF proxy or ICE DXY from Yahoo `DX-Y.NYB`) to the data pipeline.
-  - **DXY is NEW** — required as regime index for COMMODITY_HAVEN profiles and as RS benchmark for all commodity/Forex models.
-  - **Staleness Policy:** If any market-level data (VIX, SPY, DXY) is > 24h stale, corresponding guards default to FAIL. Alert via Telegram.
-- [ ] **Step 2.5: Earnings Calendar Integration (EQUITY Only).**
-  - Source: Free API (Alpha Vantage earnings calendar or SEC EDGAR).
-  - Store `next_earnings_date` per asset in DynamoDB:Config.
-  - **Applies only to assets with `event_guard = true`** (EQUITY profile). COMMODITY and FOREX skip this step.
-  - **Refresh: Daily** for all EQUITY assets. Companies reschedule with short notice.
-- [ ] **Step 2.6: The "One-Asset, One-Model" Pipeline (Profile-Aware).**
-  - Fargate Task: Pulls data for Asset X -> Reads profile from DynamoDB:Config -> Computes feature vector per profile -> Trains XGBoost Classifier -> Saves model artifact to S3.
-  - **Target:** Predict `High > Close + 3%` within 5 trading days.
-  - **Feature Vector:** Determined by profile. 14 features (EQUITY/COMMODITY) or 12 features (FOREX). See `ARCHITECTURE.md` Section 3.2.
-  - **Calibration:** Apply **Platt Scaling** post-training. Calibrate and validate **per profile class** — equity models and commodity models are calibrated independently. Validate with reliability diagrams in Phase 2.5.
+### ← v3.0 ADDITIONS TO PHASE 1 →
 
-## 🔴 Phase 2.5: The Proving Ground (Backtesting, Multi-Asset)
-- [ ] **Step 2.5.1: The Historical Simulator.**
-  - **Task:** Replay the last 1,000 trading days against the trained models.
-  - **Profile-Aware:** Simulator reads each asset's profile to apply the correct guards, features, and regime logic. No hard-coded equity assumptions.
-  - **Execution Sim:** Simulate the full Trap Order logic:
-    - Entry only if next day's High > Signal Candle High + (0.02 × ATR_14) AND < Stop + (0.05 × ATR_14). Gap-throughs = missed signal (no fill).
-    - Stop loss executes at market open price if gap-down through stop (simulate slippage, not ideal fill).
-    - TP at Entry + (`clamp(2 + ADX_14/30, 2.5, 4.5)` × ATR_14). Chandelier trailing exit at Highest_High - (2 × ATR_14).
-  - **Cross-Class Sim:** Test mixed portfolios (e.g., 2 equities + 1 Gold ETF) to validate the diversification benefit of RISK_ON + RISK_OFF positions.
-  - **Dual-constraint sizing:** `min(ATR_Size, 15% portfolio cap)`.
-  - **Calibration Validation:** Reliability diagrams **per profile class**. If calibration curve deviates > 10% from diagonal at the 0.75 threshold, recalibrate before proceeding.
-  - **Goal:** Positive Expectancy > 0.5 **per profile class**.
-  - **Gate:** If Backtest fails for any active profile class, do NOT activate that class in Phase 3.
+- [ ] **Step 1.6: Tiingo Forex Integration (Gold/Silver).** ← NEW
+  - Add XAU/USD and XAG/USD to Tiingo data pipeline as **forex instruments** (not GLD ETF).
+  - Tiingo covers 40+ FX tickers from tier-1 banks — no separate provider needed.
+  - Daily OHLCV bars. Cross-reference with Tiingo GLD ETF price (>2% divergence = alert).
+  - Store in `s3://wealth-ops-data/ohlcv/forex/XAUUSD/daily/`.
 
-## 🔴 Phase 3: The Judge & Execution (Gray Box, Multi-Asset)
+- [ ] **Step 1.7: FRED Macro Data Pipeline.** ← NEW
+  - Ingest: VIX (`VIXCLS`), Yield Curve (`T10Y2Y`), Fed Funds (`FEDFUNDS`), CPI (`CPIAUCSL`).
+  - Store in `s3://wealth-ops-data/ohlcv/macro/`.
+  - Staleness Policy: If >24h stale, corresponding guards default to FAIL.
+
+- [ ] **Step 1.8: DXY Index Data.** ← NEW
+  - Source: Tiingo (UUP ETF proxy) or Yahoo (DX-Y.NYB).
+  - Required for: COMMODITY_HAVEN regime gate (`DXY < 200 SMA`), Relative Strength benchmark.
+  - Store in `s3://wealth-ops-data/ohlcv/indices/DXY/daily/`.
+
+- [ ] **Step 1.9: Asset Profile Schema v3.** ← NEW
+  - Extend DynamoDB:Config with new fields: `macro_event_guard`, `broker`, `tax_rate`, `data_source`.
+  - Pre-populate EQUITY, COMMODITY_HAVEN, COMMODITY_CYCLICAL profiles per ARCHITECTURE.md Section 5.
+  - COMMODITY_HAVEN now points to Tiingo Forex source + IG broker + 0% tax rate.
+
+- [ ] **Step 1.10: Two-Way Telegram Commands.** ← NEW
+  - Upgrade from one-way pulse to full command interface.
+  - Implement: `/status`, `/portfolio`, `/risk`, `/help`.
+  - Lambda Function URL as webhook endpoint (no API Gateway cost).
+  - Signal execution commands (`/executed`, `/skip`, `/close`) added in Phase 3.
+
+---
+
+## 🟢 Phase 2A: Momentum Composite (NEW — Academic Baseline)
+> **Goal:** Deploy the academically-backed momentum signal FIRST as the baseline. This runs before XGBoost and provides a signal even without ML.
+
+- [ ] **Step 2A.1: Base Technical Feature Engine.**
+  - Implement on 1-Day candles: RSI(14), EMA_8, EMA_20, EMA_50, MACD Histogram, ADX(14), ATR(14), Upper Wick Ratio, Lower Wick Ratio, EMA Fan, Distance from 20d Low.
+  - Edge case: `(High - Low) == 0` → both wick ratios = `0.0`.
+  - Profile-agnostic: 11 features computed for every asset.
+
+- [ ] **Step 2A.2: Class-Specific Features.**
+  - OBV + Volume Ratio: only when `volume_features = true` (EQUITY).
+  - Relative Strength: `rs_ratio = (Asset_Close / Benchmark_Close)`, z-scored. Benchmark per profile (SPY for equities, DXY for commodities).
+  - Feature count: 14 (EQUITY), 12 (COMMODITY_HAVEN/FOREX).
+
+- [ ] **Step 2A.3: Momentum Composite Score.**
+  - Implement 6-component composite: Momentum (40%), Trend (20%), RSI (15%), Volume (10%), ATR Volatility (10%), Support/Resistance (5%).
+  - All components z-score normalized before weighting.
+  - Volume component skipped for `volume_features = false` assets, weights redistribute.
+  - Thresholds: STRONG_BUY >2.0σ, BUY >1.5σ, NEUTRAL ±1.5σ, SELL <-1.5σ.
+
+- [ ] **Step 2A.4: Momentum Signal Cards.**
+  - Telegram signal delivery with entry zones, stop loss, TP, position size, reasoning.
+  - Cards include composite score breakdown (which components contribute most).
+  - Trap Order parameters calculated and included.
+
+- [ ] **Step 2A.5: Market-Level Data Integration.**
+  - VIX, SPY, DXY data flowing into signal pipeline.
+  - Staleness policy enforced: >24h stale → guard defaults to FAIL, Telegram alert.
+
+---
+
+## 🔴 Phase 2B: The XGBoost Alpha Specialist (Evolved from v2 Phase 2)
+> **Goal:** Add XGBoost per-asset models ON TOP of the momentum baseline. Compare their performance independently.
+
+- [ ] **Step 2B.1: Earnings Calendar Integration (EQUITY Only).**
+  - Source: Tiingo Fundamentals or Alpha Vantage earnings calendar.
+  - Store `next_earnings_date` per equity asset. Refresh daily.
+  - Only for assets with `event_guard = true`.
+
+- [ ] **Step 2B.2: Economic Calendar Integration (COMMODITY/FOREX).** ← NEW
+  - Source: FRED + Finnhub free API.
+  - Track FOMC meeting dates, NFP release dates, CPI releases.
+  - Store `next_macro_event_date` for `macro_event_guard = true` assets.
+  - Guard: `Days_to_FOMC/NFP >= 2`.
+
+- [ ] **Step 2B.3: The "One-Asset, One-Model" Pipeline.**
+  - Fargate Task: Pull data → Read profile → Compute feature vector → Train XGBoost → Save to S3.
+  - Target: `High > Close + 3%` within 5 trading days.
+  - Feature vector: determined by profile (14 or 12 features).
+  - Calibration: Platt Scaling post-training. Validate per profile class.
+
+- [ ] **Step 2B.4: Dual Signal Comparison.**
+  - Run Momentum Composite AND XGBoost in parallel.
+  - Log both scores for every asset every day (even when no signal fires).
+  - Signal cards show both: "Momentum: 1.9σ | XGBoost: 82%".
+  - See ARCHITECTURE.md Section 7 for agreement matrix.
+
+---
+
+## 🔴 Phase 2.5: The Proving Ground (Backtesting, Enhanced for v3)
+
+- [ ] **Step 2.5.1: Walk-Forward Optimization.** ← NEW
+  - Training window: 3 years (expanding). Test window: 6 months. Roll forward 6 months.
+  - Minimum 10 walk-forward periods (requires 5+ years of data).
+  - Walk-Forward Efficiency > 50% required.
+
+- [ ] **Step 2.5.2: Execution-Realistic Simulator (From v2).**
+  - Full Trap Order logic: entry only if next day's High > Signal Candle High + (0.02 × ATR_14).
+  - Gap-throughs = missed signal. Stop loss at market open on gap-down (slippage sim).
+  - Dual-constraint sizing: `min(ATR_Size, 15% portfolio cap)`.
+  - **Profile-Aware:** Reads each asset's profile for correct guards, features, regime logic.
+
+- [ ] **Step 2.5.3: Monte Carlo Validation.** ← NEW
+  - 10,000 bootstrap iterations of trade returns.
+  - 5th percentile of terminal wealth must be positive.
+  - Shuffled-price test: strategy must fail on randomly permuted returns (p < 0.01).
+
+- [ ] **Step 2.5.4: Overfitting Detection.** ← NEW
+  - t-statistic > 2.0 required for signal significance.
+  - Red flags: Sharpe > 3.0, Profit Factor > 2.5, Max DD < 5%, Win Rate > 75%.
+  - If any red flag triggers: review, do not deploy.
+
+- [ ] **Step 2.5.5: Calibration Validation.**
+  - Reliability diagrams per profile class.
+  - If calibration curve deviates >10% from diagonal at 0.75 threshold → recalibrate.
+
+- [ ] **Step 2.5.6: Cross-Class Portfolio Sim.**
+  - Test mixed portfolios: 2 equities + 1 Gold (XAU/USD).
+  - Validate diversification benefit of RISK_ON + RISK_OFF positions.
+  - Run with both Momentum-only AND Momentum+XGBoost to measure ML's marginal contribution.
+
+- [ ] **Step 2.5.7: Paper Trading Gate.**
+  - Minimum 3 months, minimum 30 trades.
+  - Live results within 1σ of backtest.
+  - Slippage < 0.3%. Miss rate < 20%.
+  - **Gate:** If backtest fails for any active profile class, do NOT activate that class in Phase 3.
+
+---
+
+## 🔴 Phase 3: The Judge & Execution (Enhanced for v3)
+
 - [ ] **Step 3.1: Profile-Aware Hard Guards Lambda.**
-  - Reads each asset's profile from DynamoDB:Config. Evaluates **only applicable** guards. See `ARCHITECTURE.md` Section 4.B.
-  - **Guard 1 (Macro Gate):** Conditional on `regime_direction`:
-    - EQUITY: `SPY_Close > SMA(SPY, 200)`. Source: DynamoDB (Phase 1.3).
-    - COMMODITY_HAVEN: `DXY_Close < SMA(DXY, 200)` (inverted). Source: S3 (Phase 2.4).
-    - COMMODITY_CYCLICAL: `SPY_Close > SMA(SPY, 200)`. Same as equity.
-    - FOREX: **Skipped** (`regime_direction = ANY`).
-  - **Guard 2 (Panic Guard):** `VIX_Close < 30`. Only evaluated if `vix_guard = true` (EQUITY + COMMODITY_CYCLICAL). Source: S3 (Phase 2.4).
-  - **Guard 3 (Exposure Cap):** `count(open_positions) < 4`. Always. Cross-class total. Source: DynamoDB:Portfolio.
-  - **Guard 4 (Trend Gate):** `ADX_14 > 20` per asset. Always.
-  - **Guard 5 (Event Guard):** `Days_to_Earnings >= 7`. Only if `event_guard = true` (EQUITY only). Source: DynamoDB:Config (Phase 2.5). **Refreshed daily.**
-  - **Guard 6 (Pullback Zone):** `(Close - EMA_8) / EMA_8 <= 0.05` per asset. Always. One-sided (upside only).
-  - **Data Staleness:** If S&P, VIX, or DXY data is stale > 24h, corresponding guard defaults to FAIL. Telegram alert fires.
+  - 8 guards (v3 adds Macro Event Guard and Drawdown Gate). See ARCHITECTURE.md Section 8.B.
+  - Guard 1 (Macro Gate): Conditional on `regime_direction`. SPY/DXY/ANY.
+  - Guard 2 (Panic Guard): `VIX < 30`. Only if `vix_guard = true`.
+  - Guard 3 (Exposure Cap): `count(open_positions) < max_positions`. Always.
+  - Guard 4 (Trend Gate): `ADX_14 > 20`. Always.
+  - Guard 5 (Event Guard): `Days_to_Earnings >= 7`. Only `event_guard = true`.
+  - Guard 6 (Macro Event Guard): `Days_to_FOMC/NFP >= 2`. Only `macro_event_guard = true`. ← NEW
+  - Guard 7 (Pullback Zone): `(Close - EMA_8) / EMA_8 <= 0.05`. Always.
+  - Guard 8 (Drawdown Gate): Dynamic throttling per ARCHITECTURE.md Section 9. ← NEW
+
 - [ ] **Step 3.2: Soft Gate (ML Scoring).**
-  - Load calibrated XGBoost model from S3 for each asset that passed all applicable Hard Guards.
-  - Model was trained with the asset's profile feature vector (14 or 12 features).
-  - **Rule:** `XGBoost_Calibrated_Probability > 0.75`.
+  - Load calibrated XGBoost model from S3.
+  - Rule: `XGBoost_Calibrated_Probability > 0.75`.
+  - Also log Momentum Composite score for comparison.
+
 - [ ] **Step 3.3: Portfolio Guard.**
-  - **Concentration Limit:** Max 1 position per group. EQUITY: sector. COMMODITY: commodity type. FOREX: currency family. Highest probability wins ties.
-  - **Position Cap:** `Position_Value <= 15% of Portfolio`. Dual-constraint with ATR sizing. See `ARCHITECTURE.md` Section 4.D.
-  - **News Veto (LLM):** DeepSeek-V3 or Gemini Flash API. Triggered for all asset classes if a BUY signal survives all prior gates. See `specs/ml-compute-strategy.md`.
-- [ ] **Step 3.4: Trap Order Execution Engine.**
-  - **Entry:** BUY STOP LIMIT at `High_of_Signal_Candle + (0.02 × ATR_14)`, limit at `Stop + (0.05 × ATR_14)`.
-  - **Gap-Through Policy:** If asset opens above Limit Price, order does not fill. Accepted by design. See `ARCHITECTURE.md` Section 4.E.
-  - **TTL:** 1 trading session (EQUITY/COMMODITY). 24 clock hours (FOREX, future).
-  - **Position Sizing:** `min((Portfolio × 0.02) / (ATR_14 × 2), Portfolio × 0.15 / Entry_Price)`.
-  - **Exit Rules:**
-    - TP: Sell 50% at `Entry + (clamp(2 + ADX_14/30, 2.5, 4.5) × ATR_14)`. ADX-scaled. All classes.
-    - Trail: Chandelier Stop on remainder at `Highest_High_Since_Entry - (2 × ATR_14)`. All classes.
-    - Stop Loss: **Market order** at `Entry - (2 × ATR_14)`. Guarantees fill through gaps. All classes.
-    - Time Stop: Close at market after 10 trading days. All classes.
-  - **Phase:** Mock Paper Trading with multi-asset portfolio (equities + commodities), then IBKR integration.
+  - Concentration Limit: Max 1 per group. Highest probability wins.
+  - Position Cap: `min(ATR_Size, Portfolio × 0.15 / Entry_Price)`.
+  - **Correlation Check (NEW):** Rolling 60-day correlation. No new position if >0.70 correlated with existing.
+  - News Veto (LLM): DeepSeek-V3 or Gemini Flash.
 
-## 🔴 Phase 4: The Dashboard & Polish
-- [ ] **Step 4.1: Static Dashboard.** Streamlit or React page showing Portfolio Performance, **grouped by asset class** (Equity, Commodity, Forex).
-- [ ] **Step 4.2: Modular Asset Config.** Script to add/remove tickers **with profile assignment** (EQUITY, COMMODITY_HAVEN, COMMODITY_CYCLICAL). Validates that required data feeds (SPY, VIX, DXY) are active for the selected profile.
+- [ ] **Step 3.4: Dynamic Risk Management.** ← NEW
+  - Portfolio state tracking in DynamoDB (cash, equity, peak, drawdown, risk_status).
+  - Drawdown throttling: 8% → half sizes, 12% → 1 position max, 15% → HALT.
+  - Capital-based scaling: <€5K = 3 positions/1%, €5-15K = 4/1.5%, €15K+ = 5/2%.
+  - Cash reserve minimum enforced (40% at <€5K, 30% at €5-15K, 25% at €15K+).
 
-## 🔴 Phase 5: Forex Support (Architecture Ready, Implementation Pending)
-> The profile system (Section 3.1) and guard framework (Section 4.B) already support FOREX as a slot. This phase activates it.
+- [ ] **Step 3.5: Trap Order Execution Engine.**
+  - Entry: BUY STOP LIMIT at `High + (0.02 × ATR_14)`.
+  - Gap-Through Policy: no fill if opens above limit. By design.
+  - ADX-scaled TP: `clamp(2 + ADX/30, 2.5, 4.5) × ATR_14`.
+  - Chandelier trailing stop. Market order stop loss. 10-day time stop.
+  - Phase: Paper trading first, then IBKR + IG integration.
 
-- [ ] **Step 5.1: Forex Data Provider.**
-  - Evaluate Forex data sources (Tiingo Forex API, OANDA, or equivalent).
-  - Ingest daily Forex bars (24h session close, 5 days/week).
-- [ ] **Step 5.2: 12-Feature Model Training.**
-  - Train XGBoost models using the 12-feature vector (no OBV, no Volume Ratio).
-  - RS ratio benchmarked against DXY.
-  - Calibrate independently from equity/commodity models.
-- [ ] **Step 5.3: Forex-Specific Execution Adjustments.**
-  - TTL: 24 clock hours instead of trading session.
-  - Gap-Through Policy: Rarely triggers (24h market). Keep as weekend gap safety net.
-  - Position Cap: Evaluate whether 15% can be relaxed (lower overnight gap risk).
-- [ ] **Step 5.4: Economic Calendar Guard (Forex Hard Guard).**
-  - Central bank decision dates (FOMC, ECB, BoE) and major releases (NFP, CPI).
-  - Equivalent of the Event Guard but for Forex. `Days_to_Central_Bank_Decision >= 3`.
-  - Source: Free economic calendar API.
+- [ ] **Step 3.6: Full Telegram Command Interface.** ← NEW
+  - `/executed <id> [price]`, `/skip <id>`, `/close <id> [price]`.
+  - `/pause`, `/resume`, `/performance`.
+  - Position alerts: stop proximity, trailing updates, TP hits, regime changes.
+  - Signal cards per ARCHITECTURE.md Section 12.1.
+
+- [ ] **Step 3.7: Broker Abstraction Layer.** ← NEW
+  - `BrokerInterface` ABC with `IGBroker`, `IBKRBroker`, `PaperBroker` implementations.
+  - Phase 3: PaperBroker only (simulated execution).
+  - Broker field in asset profile routes each asset to correct broker.
+  - Tax rate field for P&L reporting.
+
+---
+
+## 🔴 Phase 4: ML Regime Classifier (NEW in v3)
+> **Goal:** Add a LightGBM regime classifier that adjusts Hard Guard parameters and position sizing. Does NOT generate signals.
+
+- [ ] **Step 4.1: Regime Feature Engineering.**
+  - 15 features: Momentum (4 periods), RSI, MACD histogram, Bollinger %B, vol ratios, volume ratios, VIX level, VIX change, yield curve, fed funds rate, DXY momentum.
+  - All from existing data pipeline (no new sources needed).
+
+- [ ] **Step 4.2: LightGBM Training.**
+  - Target: next 20-day return direction (binary).
+  - Training: expanding window, retrain monthly.
+  - Expected accuracy: 52–56%.
+  - Runs on Lambda (3GB ARM). LightGBM trains in seconds on daily data.
+
+- [ ] **Step 4.3: Regime Integration.**
+  - 5 regimes: BULL_TREND, BEAR_TREND, HIGH_VOLATILITY, LOW_VOLATILITY, TRANSITION.
+  - Regime adjusts: position sizes, stop-loss tightness, TP targets.
+  - Existing Macro Gate (SPY > 200 SMA) remains as fallback.
+
+- [ ] **Step 4.4: Regime Validation.**
+  - Backtest with vs. without regime classifier.
+  - **Deploy ONLY if measurable improvement** over no regime filter.
+  - Regime displayed in daily briefing and signal cards.
+
+---
+
+## 🔴 Phase 5: Live Trading (Enhanced for v3)
+
+- [ ] **Step 5.1: Paper Trading Analysis.**
+  - Minimum 3 months, 30 trades analyzed.
+  - Check: positive expectancy, Sharpe >0.5, max DD <15%.
+  - Live vs backtest within 1σ.
+  - Kill conditions checked (see ARCHITECTURE.md Section 13).
+
+- [ ] **Step 5.2: Broker Account Setup.**
+  - **IG Ireland:** Fund account (minimum €300). Verify spread betting API access.
+  - **IBKR Ireland (IBIE):** Fund account. Activate IBKR Pro for API.
+  - Test API connectivity from Lambda for both.
+
+- [ ] **Step 5.3: Live Gold (IG First).**
+  - Start with XAU/USD only on IG spread betting.
+  - **HALF of backtested position sizes** for first month.
+  - Monitor: slippage, spread costs, overnight funding charges.
+  - Tax: track that IG profits are tax-free (spread betting exemption).
+
+- [ ] **Step 5.4: Live Stocks (IBKR Second).**
+  - Add US equity trades via IBKR after 1+ month on IG.
+  - HALF sizes for first month.
+  - Tax: track 33% CGT, €1,270 annual exemption.
+
+- [ ] **Step 5.5: Full Portfolio.**
+  - Mixed portfolio: equities (IBKR) + commodities (IG).
+  - Validate cross-asset correlation and diversification benefit.
+  - Scale to full position sizes only after 2+ months of live results.
+
+---
+
+## 🔴 Phase 6: Dashboard & Polish
+
+- [ ] **Step 6.1: Static Dashboard.**
+  - Streamlit or React page showing Portfolio Performance grouped by asset class.
+  - Equity curve, drawdown chart, trade log, regime timeline.
+
+- [ ] **Step 6.2: Modular Asset Config.**
+  - Script to add/remove tickers with profile assignment.
+  - Validates required data feeds are active for selected profile.
+
+---
+
+## 🔴 Phase 7: Forex Support (Architecture Ready, Not Activated)
+> Profile system and guard framework already support FOREX as a slot. This phase activates it.
+
+- [ ] **Step 7.1: Forex Data Provider.** Tiingo Forex for daily bars (already integrated for XAU/USD).
+- [ ] **Step 7.2: 12-Feature Model Training.** No OBV/Volume Ratio. RS vs DXY.
+- [ ] **Step 7.3: Forex Execution Adjustments.** TTL: 24 clock hours. Gap-through rare.
+- [ ] **Step 7.4: Economic Calendar Guard.** Central bank decisions >= 3 days out.
+
+---
+
+## Timeline Estimate (Solo Dev, ~1hr/day + weekends)
+
+| Phase | Duration | Cumulative | Deliverable |
+|-------|----------|-----------|-------------|
+| 1 (remaining) | 2 weeks | Week 2 | Tiingo Forex + FRED data flowing, two-way Telegram |
+| 2A | 3 weeks | Week 5 | Momentum signals live, paper trading begins |
+| 2B | 3 weeks | Week 8 | XGBoost models trained, dual-signal comparison |
+| 2.5 | 3 weeks | Week 11 | Backtesting validated (walk-forward + Monte Carlo) |
+| 3 | 4 weeks | Week 15 | Full pipeline: signal → guards → risk → notify |
+| 4 | 3 weeks | Week 18 | Regime classifier (deploy only if proven) |
+| 5 | 3+ months | Month 7+ | Paper trading complete, live with HALF sizes |
+
+**Key gates:** Phase 2.5 can BLOCK Phase 3 activation for failing profile classes. Phase 5.1 can BLOCK live trading if paper results diverge.
+
+---
+
+*Wealth-Ops v3.0 Roadmap — February 2026*
