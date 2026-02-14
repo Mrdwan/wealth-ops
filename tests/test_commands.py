@@ -3,6 +3,8 @@
 from decimal import Decimal
 from unittest.mock import MagicMock
 
+from botocore.exceptions import ClientError
+
 from src.modules.notifications.commands import (
     handle_help,
     handle_portfolio,
@@ -181,3 +183,79 @@ class TestHandleHelp:
 
         assert "Portfolio summary" in result
         assert "Risk parameters" in result
+
+
+class TestCommandsErrorHandling:
+    """Tests for error handling in command helpers."""
+
+    def test_get_market_status_client_error(self) -> None:
+        """Test _get_market_status returns UNKNOWN on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "fail"}},
+            "GetItem",
+        )
+        mock_dynamodb.query.return_value = {"Count": 0}
+
+        result = handle_status(_make_config(), dynamodb_client=mock_dynamodb)
+
+        assert "UNKNOWN" in result
+
+    def test_get_cash_balance_client_error(self) -> None:
+        """Test _get_cash_balance returns 0 on ClientError."""
+        mock_dynamodb = MagicMock()
+        # First call (market_status) succeeds
+        mock_dynamodb.get_item.side_effect = [
+            {"Item": {"key": {"S": "market_status"}, "value": {"S": "BULL"}}},
+            ClientError(
+                {"Error": {"Code": "InternalError", "Message": "fail"}},
+                "GetItem",
+            ),
+        ]
+        mock_dynamodb.query.return_value = {"Count": 0}
+
+        result = handle_status(_make_config(), dynamodb_client=mock_dynamodb)
+
+        assert "€0.00" in result
+
+    def test_count_positions_client_error(self) -> None:
+        """Test _count_positions returns 0 on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.return_value = {
+            "Item": {"key": {"S": "market_status"}, "value": {"S": "BULL"}}
+        }
+        mock_dynamodb.query.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "fail"}},
+            "Query",
+        )
+
+        result = handle_status(_make_config(), dynamodb_client=mock_dynamodb)
+
+        assert "Open Positions: 0" in result
+
+    def test_get_positions_client_error(self) -> None:
+        """Test _get_positions returns empty list on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.return_value = {}
+        mock_dynamodb.query.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "fail"}},
+            "Query",
+        )
+
+        result = handle_portfolio(_make_config(), dynamodb_client=mock_dynamodb)
+
+        assert "Cash is a position" in result
+
+    def test_get_risk_state_client_error(self) -> None:
+        """Test _get_risk_state returns defaults on ClientError."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.get_item.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "fail"}},
+            "GetItem",
+        )
+
+        result = handle_risk(_make_config(), dynamodb_client=mock_dynamodb)
+
+        assert "0.0%" in result
+        assert "NORMAL" in result
+

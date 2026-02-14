@@ -147,6 +147,55 @@ class TestMacroDataManager:
 
         assert count == 0
 
+    def test_get_threshold_unknown_series_returns_default(self, config: Config) -> None:
+        """Test that unknown series ID returns default 24h threshold."""
+        manager = MacroDataManager(
+            config=config,
+            provider=MagicMock(),
+            s3_client=MagicMock(),
+            dynamodb_client=MagicMock(),
+        )
+
+        assert manager._get_threshold("UNKNOWN_SERIES") == 24
+
+    def test_save_to_s3_client_error_raises(
+        self, config: Config, sample_df: pd.DataFrame
+    ) -> None:
+        """Test that S3 ClientError in _save_to_s3 is re-raised."""
+        mock_s3 = MagicMock()
+        mock_s3.put_object.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "fail"}},
+            "PutObject",
+        )
+
+        manager = MacroDataManager(
+            config=config,
+            provider=MagicMock(),
+            s3_client=mock_s3,
+            dynamodb_client=MagicMock(),
+        )
+
+        with pytest.raises(ClientError):
+            manager._save_to_s3("VIXCLS", sample_df)
+
+    def test_update_staleness_client_error_raises(self, config: Config) -> None:
+        """Test that DynamoDB ClientError in _update_staleness is re-raised."""
+        mock_dynamodb = MagicMock()
+        mock_dynamodb.put_item.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "fail"}},
+            "PutItem",
+        )
+
+        manager = MacroDataManager(
+            config=config,
+            provider=MagicMock(),
+            s3_client=MagicMock(),
+            dynamodb_client=mock_dynamodb,
+        )
+
+        with pytest.raises(ClientError):
+            manager._update_staleness("VIXCLS")
+
 
 class TestStalenessCheck:
     """Tests for staleness checking."""

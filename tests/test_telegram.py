@@ -287,3 +287,62 @@ class TestTelegramErrorHandling:
         result = notifier._send_message("Test message")
 
         assert result is False
+
+
+class TestSendReply:
+    """Tests for send_reply() method."""
+
+    @patch("src.modules.notifications.telegram.httpx.Client")
+    def test_send_reply_success(
+        self,
+        mock_client_class: MagicMock,
+        config: Config,
+    ) -> None:
+        """Test successful reply sending."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_class.return_value = mock_client
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=MagicMock())
+        result = notifier.send_reply("123456", "Test reply")
+
+        assert result is True
+        call_kwargs = mock_client.post.call_args
+        assert call_kwargs[1]["json"]["chat_id"] == "123456"
+        assert call_kwargs[1]["json"]["text"] == "Test reply"
+
+    def test_send_reply_no_token_returns_false(
+        self,
+        config_no_telegram: Config,
+    ) -> None:
+        """Test send_reply returns False when bot token is not configured."""
+        notifier = TelegramNotifier(
+            config=config_no_telegram,
+            dynamodb_client=MagicMock(),
+        )
+        result = notifier.send_reply("123456", "Test reply")
+
+        assert result is False
+
+    @patch("src.modules.notifications.telegram.httpx.Client")
+    def test_send_reply_http_error_returns_false(
+        self,
+        mock_client_class: MagicMock,
+        config: Config,
+    ) -> None:
+        """Test send_reply returns False on HTTP error."""
+        mock_client = MagicMock()
+        mock_client.post.side_effect = httpx.HTTPError("Connection refused")
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_class.return_value = mock_client
+
+        notifier = TelegramNotifier(config=config, dynamodb_client=MagicMock())
+        result = notifier.send_reply("123456", "Test reply")
+
+        assert result is False
+

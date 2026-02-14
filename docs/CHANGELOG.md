@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 2A Momentum Composite (Step 2A.3)
+- **Momentum Composite Score** (`src/modules/signals/momentum_composite.py`): `MomentumComposite` class computing 6-component z-score-weighted signal. Components: Momentum 40% (Jegadeesh & Titman), Trend 20% (200 SMA), RSI 15%, Volume 10%, ATR Volatility 10%, Support/Resistance 5% (Donchian).
+- **Component calculators** (`src/modules/signals/components.py`): Six pure functions for raw score computation. Profile-aware: volume component skipped for `volume_features=false` assets with proportional weight redistribution.
+- **Signal classification**: `SignalClassification` StrEnum — STRONG_BUY (>2.0σ), BUY (>1.5σ), NEUTRAL (±1.5σ), SELL (<-1.5σ), STRONG_SELL (<-2.0σ).
+- **CompositeResult** frozen dataclass: composite_score, signal, components dict, weights_used.
+- Minimum data requirement: 273 bars (~13 months) for 12-month momentum with 1-month skip.
+
 ### Added — Phase 1 v3 Data Pipelines (Steps 1.6–1.10)
 - **Asset Profile Schema v3** (`src/shared/profiles.py`): `AssetProfile` frozen dataclass with 4 templates (EQUITY, COMMODITY_HAVEN, COMMODITY_CYCLICAL, INDEX), DynamoDB serialization, and S3 prefix routing.
 - **Seed script** (`scripts/seed_profiles.py`): Idempotent DynamoDB seeder for 9 tickers (5 equities, 2 indices, 2 commodities).
@@ -22,11 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `data_ingestion.py`: `get_enabled_tickers()` now returns `list[tuple[str, AssetProfile]]` for profile-aware routing.
 - `FeatureEngine.compute()`: added optional `benchmark_df` parameter for relative strength calculation.
 
+### Fixed
+- **NaN Guard Bug** in `support_resistance_score()` (`components.py`): `.where(channel_range > 0, 0.5)` replaced warmup `NaN` with `0.5` because `NaN > 0` is `False`. Fixed with `is_warmup = channel_range.isna()` guard.
+- **NaN Guard Bug** in `_zscore()` (`momentum_composite.py`): Same pattern — `.where(rolling_std > 0, 0.0)` killed warmup `NaN`. Fixed identically.
+- **Coverage gaps closed**: Added error-branch tests for `macro_manager.py`, `commands.py`, and `telegram.py` (11 new tests).
+
 ### Tests
-- **209 tests passing** (added 73 new tests across 8 test files).
-- **97% overall coverage** — uncovered lines limited to:
-  - `macro_manager.py`: S3 save error paths (operational edge cases)
-  - `commands.py` / `telegram.py`: DynamoDB error handling branches and `send_reply()` method (require integration tests)
+- **276 tests passing** (added 11 error-branch tests).
+- **100% branch coverage** achieved — all `try/except` paths now tested.
 
 ## [3.0.0] - 2026-02-12
 

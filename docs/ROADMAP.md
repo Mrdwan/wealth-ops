@@ -64,7 +64,7 @@
   - Relative Strength: z-scored `asset_close / benchmark_close` ratio. Benchmark per profile (SPY for equities, UUP for commodities).
   - Feature count: 14 (EQUITY), 12 (COMMODITY_HAVEN/FOREX).
 
-- [ ] **Step 2A.3: Momentum Composite Score.**
+- [x] **Step 2A.3: Momentum Composite Score.**
   - Implement 6-component composite: Momentum (40%), Trend (20%), RSI (15%), Volume (10%), ATR Volatility (10%), Support/Resistance (5%).
   - All components z-score normalized before weighting.
   - Volume component skipped for `volume_features = false` assets, weights redistribute.
