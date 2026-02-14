@@ -89,8 +89,8 @@
   - Store `next_earnings_date` per equity asset. Refresh daily.
   - Only for assets with `event_guard = true`.
 
-- [ ] **Step 2B.2: Economic Calendar Integration (COMMODITY/FOREX).** ← NEW
-  - Source: FRED + Finnhub free API.
+- [x] **Step 2B.2: Economic Calendar Integration (COMMODITY/FOREX).** ← NEW
+  - Source: Static Fed/BLS schedules + algorithmic NFP computation (Finnhub premium, avoided).
   - Track FOMC meeting dates, NFP release dates, CPI releases.
   - Store `next_macro_event_date` for `macro_event_guard = true` assets.
   - Guard: `Days_to_FOMC/NFP >= 2`.

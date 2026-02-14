@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 2B Economic Calendar Integration (Step 2B.2)
+- **Economic Calendar Provider protocol** (`src/modules/data/protocols.py`): `EconomicCalendarProvider` protocol with `get_event_dates()` method for swappable calendar sources.
+- **Fed Calendar Provider** (`src/modules/data/providers/fed_calendar_provider.py`): `FedCalendarProvider` with hardcoded FOMC/CPI schedules (2025–2027 from Fed/BLS) and algorithmic NFP computation (first Friday of each month). No paid API required.
+- **Economic Calendar Manager** (`src/modules/data/economic_calendar_manager.py`): `EconomicCalendarManager` orchestrator with S3 persistence (`economic_calendar/calendar_{year}.json`), DynamoDB staleness tracking (24h threshold). Methods: `ingest()`, `get_next_macro_event_date()`, `days_until_macro_event()`, `check_staleness()`.
+
+### Tests
+- **433 tests passing** (added 39 new tests for economic calendar provider + manager).
+- **100% branch coverage** maintained.
+
 ### Added — Phase 2B Earnings Calendar Integration (Step 2B.1)
 - **Earnings Data Provider protocol** (`src/modules/data/protocols.py`): `EarningsDataProvider` protocol with `get_statement_dates()` method for swappable earnings data sources.
 - **Tiingo Earnings Provider** (`src/modules/data/providers/tiingo_earnings.py`): `TiingoEarningsProvider` fetches historical quarterly statement release dates from Tiingo Fundamentals API. Filters out annual reports. Same httpx + `ProviderError` pattern as `TiingoProvider`.

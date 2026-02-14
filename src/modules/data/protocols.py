@@ -135,3 +135,32 @@ class EarningsDataProvider(Protocol):
             ProviderError: If the provider fails to fetch data.
         """
         ...
+
+
+class EconomicCalendarProvider(Protocol):
+    """Protocol for economic calendar data providers.
+
+    Implementations provide dates of major macro events
+    (FOMC meetings, NFP releases, CPI releases) that drive
+    the Macro Event Guard for COMMODITY and FOREX assets.
+    """
+
+    @property
+    def name(self) -> str:
+        """Provider name for logging and error messages."""
+        ...
+
+    def get_event_dates(self, event_type: str, year: int) -> list[date]:
+        """Fetch scheduled dates for a macro event type in a given year.
+
+        Args:
+            event_type: Event identifier ('FOMC', 'NFP', or 'CPI').
+            year: Calendar year to fetch dates for.
+
+        Returns:
+            Sorted list of event dates for the given year.
+
+        Raises:
+            ProviderError: If event_type is unknown or year is unsupported.
+        """
+        ...

@@ -2,7 +2,7 @@
 
 **A Cloud-Native Swing Trading Advisory System optimized for Irish Tax Residents.**
 
-> **Status:** Phase 2B (XGBoost Alpha Specialist — Earnings Calendar ✅)
+> **Status:** Phase 2B (XGBoost Alpha Specialist — Earnings Calendar ✅, Economic Calendar ✅)
 > **License:** Private / MIT
 > **Current Focus:** Building the XGBoost ML pipeline with dual-signal architecture.
 
@@ -64,7 +64,7 @@ wealth-ops/
 │   │   ├── regime/         # Regime filter (circuit breaker)
 │   │   └── signals/        # Momentum composite, signal cards, guards
 │   └── shared/             # Config, logger, asset profiles
-├── tests/                  # 🛡️ 394 tests, 100% branch coverage
+├── tests/                  # 🛡️ 433 tests, 100% branch coverage
 └── README.md
 ```
 
