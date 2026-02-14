@@ -100,3 +100,38 @@ class ProviderError(Exception):
         self.provider = provider
         self.ticker = ticker
         super().__init__(f"[{provider}] Failed to fetch {ticker}: {message}")
+
+
+class EarningsDataProvider(Protocol):
+    """Protocol for earnings calendar data providers.
+
+    Implementations fetch historical quarterly statement release dates
+    from financial data APIs (e.g., Tiingo Fundamentals, Alpha Vantage).
+    """
+
+    @property
+    def name(self) -> str:
+        """Provider name for logging and error messages."""
+        ...
+
+    def get_statement_dates(
+        self,
+        ticker: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[date]:
+        """Fetch historical quarterly statement release dates.
+
+        Args:
+            ticker: Stock symbol (e.g., 'AAPL').
+            start_date: Start date (inclusive).
+            end_date: End date (inclusive).
+
+        Returns:
+            List of dates when quarterly statements were released,
+            sorted ascending. Annual reports are excluded.
+
+        Raises:
+            ProviderError: If the provider fails to fetch data.
+        """
+        ...

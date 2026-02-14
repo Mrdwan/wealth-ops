@@ -84,7 +84,7 @@
 ## 🔴 Phase 2B: The XGBoost Alpha Specialist (Evolved from v2 Phase 2)
 > **Goal:** Add XGBoost per-asset models ON TOP of the momentum baseline. Compare their performance independently.
 
-- [ ] **Step 2B.1: Earnings Calendar Integration (EQUITY Only).**
+- [x] **Step 2B.1: Earnings Calendar Integration (EQUITY Only).**
   - Source: Tiingo Fundamentals or Alpha Vantage earnings calendar.
   - Store `next_earnings_date` per equity asset. Refresh daily.
   - Only for assets with `event_guard = true`.

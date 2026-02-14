@@ -1,68 +1,70 @@
-# 🏛️ Wealth-Ops v2.0
+# 🏛️ Wealth-Ops v3.0
 
-**An AI-Powered, Cloud-Native Personal Hedge Fund optimized for Irish Tax Residents.**
+**A Cloud-Native Swing Trading Advisory System optimized for Irish Tax Residents.**
 
-> **Status:** Phase 0 (Infrastructure Setup)
+> **Status:** Phase 2B (XGBoost Alpha Specialist — Earnings Calendar ✅)
 > **License:** Private / MIT
-> **Current Focus:** Building the AWS Foundation.
+> **Current Focus:** Building the XGBoost ML pipeline with dual-signal architecture.
 
 ---
 
 ## 📖 The Mission
-Wealth-Ops is not a "get rich quick" bot. It is a **Capital Preservation & Swing Trading Engine** designed to solve three specific problems for the individual investor in Ireland:
+Wealth-Ops is a **Capital Preservation & Swing Trading Engine** designed for the solo Irish trader:
 
-1.  **The Tax Trap:** Avoids ETFs (41% Deemed Disposal Tax) in favor of Direct Indexing (Individual Stocks @ 33% CGT).
-2.  **The Fee Shark:** Enforces minimum trade sizes (€2k+) to minimize commission drag.
-3.  **The Emotional Gap:** Uses an "AI Committee" to separate mathematical signal from human panic.
+1.  **The Tax Edge:** Dual-broker strategy — IG spread betting (tax-free) for gold/commodities, IBKR (33% CGT) for US stocks.
+2.  **The Discipline:** Hard Guards enforce risk rules before any signal reaches the trader. "Cash is a Position."
+3.  **The Signal:** Momentum Composite (academic baseline) + XGBoost (ML) — dual-signal validation.
 
 ---
 
-## 🧠 The Architecture (The Committee)
+## 🧠 The Architecture
 
-The system operates as a distributed "Committee of Agents" on AWS:
+The system operates as a **notification-first advisory pipeline** on AWS:
 
-1.  **🛡️ The Regime Filter (Circuit Breaker):**
-    * *Logic:* "Don't catch a falling knife."
-    * *Role:* Checks S&P 500 vs. 200-day MA. If Bear Market, **hard block** on all buys.
-2.  **🔭 The Scout (Data):**
-    * *Role:* Fetches Daily Candles (Yahoo) and News Sentiment (RSS/APIs).
-3.  **🎯 The Alpha Specialist (Math):**
-    * *Core Tech:* XGBoost (One Model Per Asset).
-    * *Strategy:* **"The Swing Sniper"** - Predicts if `High > Close + 3%` within 5 days.
-4.  **⚖️ The Judge (Synthesis):**
-    * *Role:* An LLM (Gemini/Claude) that reads the Specialist's math and the Scout's news to issue a final **Buy/Hold/Sell** verdict.
+1.  **📊 Data Engine:** Tiingo (stocks + forex) + FRED (macro) → S3 Parquet data lake.
+2.  **📈 Signal Engine:** Momentum Composite (6-component z-score) + XGBoost per-asset models.
+3.  **🛡️ Hard Guards:** 8 non-negotiable gates (Macro, VIX, Exposure, Trend, Earnings, FOMC, Pullback, Drawdown).
+4.  **💬 Telegram Bot:** Two-way command interface with signal cards, daily briefings, and trade execution.
 
 ---
 
 ## 🛠️ Tech Stack
 
 **Infrastructure:**
-* **Cloud:** AWS (Lambda, Fargate, Step Functions).
+* **Cloud:** AWS (Lambda, Fargate, EventBridge, Step Functions).
 * **IaC:** AWS CDK (Python).
-* **Database:** DynamoDB (Single Table Design for Ledger & Config).
-* **Storage:** S3 (Parquet Data Lake).
+* **Database:** DynamoDB (Config, Ledger, Portfolio, System tables).
+* **Storage:** S3 (Parquet data lake + model artifacts).
 
 **Application:**
 * **Language:** Python 3.13+.
-* **ML Engine:** XGBoost.
-* **Quality:** `pytest` (100% Branch Coverage), `mypy` (Strict Typing).
+* **ML Engine:** XGBoost (per-asset) + LightGBM (regime classifier, Phase 4).
+* **Quality:** `pytest` (100% branch coverage), `mypy` (strict typing), `ruff` (linting).
 
 ---
 
 ## 📂 Project Structure
 
-This project follows the **Context-First** development protocol.
-
 ```text
-wealth-ops-v2/
+wealth-ops/
 ├── .devcontainer/          # 🐳 Dev Container (Docker-based dev environment)
-├── .pre-commit-config.yaml # 🔒 Pre-commit hooks (ruff, mypy, poetry check)
-├── .agent/                 # 🤖 The AI Context Kernel
-│   └── rules/              # The "Laws" (Constitution, Code Standards)
-├── docs/                   # 📜 The Truth (Architecture & Roadmap)
-├── infra/                  # ☁️ Infrastructure as Code (CDK)
+├── .agent/                 # 🤖 AI Context Kernel (rules, workflows)
+│   ├── rules/              # Constitution, Code Standards
+│   └── workflows/          # Repeatable procedures
+├── docs/                   # 📜 Architecture, Roadmap, Changelog
+├── infra/                  # ☁️ CDK Infrastructure as Code
+├── prompts/                # 🏗️ Architect & Builder prompts
+├── scripts/                # 🔧 Seed scripts, utilities
 ├── src/                    # 🧠 Application Logic
-│   ├── modules/            # The Committee Members (Specialist, Scout, Judge)
-│   └── shared/             # Shared Utilities (Logger, Config)
-├── tests/                  # 🛡️ The Quality Gate (100% Coverage)
+│   ├── lambdas/            # Lambda handlers (data ingest, pulse, webhook)
+│   ├── modules/
+│   │   ├── data/           # Data engine (providers, managers)
+│   │   ├── features/       # Technical indicator engine (11+ indicators)
+│   │   ├── notifications/  # Telegram bot + command handlers
+│   │   ├── regime/         # Regime filter (circuit breaker)
+│   │   └── signals/        # Momentum composite, signal cards, guards
+│   └── shared/             # Config, logger, asset profiles
+├── tests/                  # 🛡️ 394 tests, 100% branch coverage
 └── README.md
+```
+

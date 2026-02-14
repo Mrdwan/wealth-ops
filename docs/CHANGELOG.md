@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added — Phase 2A Market-Level Data Integration (Step 2A.5)
+### Added — Phase 2B Earnings Calendar Integration (Step 2B.1)
+- **Earnings Data Provider protocol** (`src/modules/data/protocols.py`): `EarningsDataProvider` protocol with `get_statement_dates()` method for swappable earnings data sources.
+- **Tiingo Earnings Provider** (`src/modules/data/providers/tiingo_earnings.py`): `TiingoEarningsProvider` fetches historical quarterly statement release dates from Tiingo Fundamentals API. Filters out annual reports. Same httpx + `ProviderError` pattern as `TiingoProvider`.
+- **Earnings Calendar Manager** (`src/modules/data/earnings_manager.py`): `EarningsCalendarManager` orchestrator with S3 persistence (`earnings/calendar_{ticker}.json`), DynamoDB staleness tracking (24h threshold), and `next_earnings_date` projection from average quarterly intervals (~90-day default fallback). Methods: `ingest()`, `ingest_all()`, `get_next_earnings_date()`, `days_until_earnings()`, `check_staleness()`.
+
+### Tests
+- **394 tests passing** (added 31 new tests for earnings provider + manager).
+- **100% branch coverage** maintained.
+
 - **Market Context** (`src/modules/signals/market_context.py`): `MarketContext` frozen dataclass carrying VIX close, SPY close/SMA200, DXY close/SMA200 into the signal pipeline. Convenience properties: `spy_above_sma200`, `dxy_below_sma200`, `vix_below_panic`.
 - **Market Data Loader** (`src/modules/signals/market_context.py`): `MarketDataLoader` reads OHLCV parquets (SPY, DXY/UUP) and macro parquets (VIXCLS) from S3, computes SMA(200), and builds `MarketContext`. Handles missing data gracefully (NaN fallbacks).
 - **Staleness Guard** (`src/modules/signals/staleness_guard.py`): `StalenessGuard` checks DynamoDB timestamps for VIX, SPY, and DXY freshness. >24h stale → `StalenessResult.passed=False` + pre-formatted Telegram alert. Defaults to FAIL on DynamoDB errors (safe-side).
