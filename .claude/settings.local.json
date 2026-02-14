@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(git -C /Users/radwan/dev/wealth-ops status tests/test_config.py)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(bc:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(poetry run pytest:*)",
+      "Bash(pytest:*)",
+      "Bash(poetry install:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

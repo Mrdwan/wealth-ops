@@ -61,12 +61,18 @@ class DataManager:
         self._s3 = s3_client or boto3.client("s3", region_name=config.aws_region)
         self._dynamodb = dynamodb_client or boto3.client("dynamodb", region_name=config.aws_region)
 
-    def ingest(self, ticker: str, max_history_years: int = 50) -> int:
+    def ingest(
+        self,
+        ticker: str,
+        max_history_years: int = 50,
+        s3_prefix: str | None = None,
+    ) -> int:
         """Ingest market data for a ticker with gap-fill logic.
 
         Args:
             ticker: Stock symbol (e.g., 'AAPL').
             max_history_years: Max years to fetch in bootstrap mode.
+            s3_prefix: Optional S3 path prefix (e.g., 'ohlcv/stocks').
 
         Returns:
             Number of records ingested.
@@ -104,7 +110,7 @@ class DataManager:
             return 0
 
         # Save to S3
-        self._save_to_s3(ticker, df)
+        self._save_to_s3(ticker, df, s3_prefix=s3_prefix)
 
         # Update DynamoDB
         new_last_updated = df.index.max()
@@ -218,12 +224,16 @@ class DataManager:
             logger.error(f"Failed to update DynamoDB: {e}")
             raise
 
-    def _save_to_s3(self, ticker: str, df: pd.DataFrame) -> None:
+    def _save_to_s3(
+        self, ticker: str, df: pd.DataFrame, s3_prefix: str | None = None
+    ) -> None:
         """Save DataFrame to S3 as Parquet.
 
         Args:
             ticker: Stock symbol.
             df: DataFrame to save.
+            s3_prefix: Optional S3 path prefix (e.g., 'ohlcv/stocks').
+                Falls back to 'raw' if not provided.
         """
         # Convert to parquet bytes
         table = pa.Table.from_pandas(df)
@@ -234,7 +244,8 @@ class DataManager:
         # Determine S3 key
         min_date = df.index.min()
         max_date = df.index.max()
-        key = f"raw/{ticker}/{min_date}_{max_date}.parquet"
+        prefix = s3_prefix or "raw"
+        key = f"{prefix}/{ticker}/daily/{min_date}_{max_date}.parquet"
 
         try:
             self._s3.put_object(

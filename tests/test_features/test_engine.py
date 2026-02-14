@@ -104,3 +104,54 @@ class TestFeatureEngine:
         })
         with pytest.raises(ValueError, match="at least 50 rows"):
             engine.compute(df)
+
+    def test_compute_with_benchmark_adds_rs(
+        self, sample_ohlcv: pd.DataFrame
+    ) -> None:
+        """Should produce rs_zscore when benchmark_df is provided."""
+        engine = FeatureEngine()
+        # Use same data as benchmark (RS ratio = 1.0 everywhere)
+        benchmark = sample_ohlcv[["open", "high", "low", "close", "volume"]].copy()
+        result = engine.compute(
+            sample_ohlcv, volume_features=True, benchmark_df=benchmark
+        )
+
+        assert "rs_zscore" in result.columns
+        assert len(result) == len(sample_ohlcv)
+
+    def test_compute_without_benchmark_no_rs(
+        self, sample_ohlcv: pd.DataFrame
+    ) -> None:
+        """Should NOT produce rs_zscore when benchmark_df is None."""
+        engine = FeatureEngine()
+        result = engine.compute(sample_ohlcv, volume_features=True)
+
+        assert "rs_zscore" not in result.columns
+
+    def test_compute_14_features_equity_with_benchmark(
+        self, sample_ohlcv: pd.DataFrame
+    ) -> None:
+        """EQUITY with benchmark: 11 base + 2 volume + 1 RS = 14 features."""
+        engine = FeatureEngine()
+        benchmark = sample_ohlcv[["close"]].copy()
+        result = engine.compute(
+            sample_ohlcv, volume_features=True, benchmark_df=benchmark
+        )
+
+        expected_features = BASE_FEATURES + VOLUME_FEATURES + ["rs_zscore"]
+        for col in expected_features:
+            assert col in result.columns, f"Missing column: {col}"
+
+    def test_compute_12_features_commodity_with_benchmark(
+        self, sample_ohlcv: pd.DataFrame
+    ) -> None:
+        """COMMODITY with benchmark: 11 base + 0 volume + 1 RS = 12 features."""
+        engine = FeatureEngine()
+        benchmark = sample_ohlcv[["close"]].copy()
+        result = engine.compute(
+            sample_ohlcv, volume_features=False, benchmark_df=benchmark
+        )
+
+        assert "rs_zscore" in result.columns
+        assert "obv" not in result.columns
+        assert "volume_ratio" not in result.columns

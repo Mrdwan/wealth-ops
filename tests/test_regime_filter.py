@@ -23,6 +23,7 @@ def config() -> Config:
         portfolio_table="test-portfolio",
         system_table="test-system",
         tiingo_api_key="test-key",
+        fred_api_key="",
         telegram_bot_token="",
         telegram_chat_id="",
         environment="test",

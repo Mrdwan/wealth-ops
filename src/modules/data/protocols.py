@@ -1,6 +1,6 @@
-"""Market Data Provider Protocol.
+"""Data Provider Protocols.
 
-Defines the interface that all market data providers must implement.
+Defines the interfaces for market data and macro data providers.
 """
 
 from datetime import date
@@ -43,6 +43,42 @@ class MarketDataProvider(Protocol):
                 - close: Closing price
                 - volume: Trading volume
                 - adjusted_close: Adjusted closing price
+
+        Raises:
+            ProviderError: If the provider fails to fetch data.
+        """
+        ...
+
+
+class MacroDataProvider(Protocol):
+    """Protocol for macro/economic data providers (non-OHLCV).
+
+    FRED and similar providers return single-value time series
+    (date, value) rather than OHLCV candles.
+    """
+
+    @property
+    def name(self) -> str:
+        """Provider name for logging and error messages."""
+        ...
+
+    def get_observations(
+        self,
+        series_id: str,
+        start_date: date,
+        end_date: date,
+    ) -> pd.DataFrame:
+        """Fetch time series observations for a macro indicator.
+
+        Args:
+            series_id: FRED series ID (e.g., 'VIXCLS', 'T10Y2Y').
+            start_date: Start date (inclusive).
+            end_date: End date (inclusive).
+
+        Returns:
+            DataFrame with columns:
+                - date (index): Observation date
+                - value: Observation value (float)
 
         Raises:
             ProviderError: If the provider fails to fetch data.

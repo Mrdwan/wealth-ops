@@ -9,6 +9,7 @@ from src.modules.features.indicators.momentum import macd_histogram, obv, rsi
 from src.modules.features.indicators.price import distance_from_low
 from src.modules.features.indicators.trend import adx, ema, ema_fan
 from src.modules.features.indicators.volatility import atr
+from src.modules.features.indicators.relative_strength import relative_strength
 from src.modules.features.indicators.volume import volume_ratio
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "lower_wick_ratio",
     "volume_ratio",
     "distance_from_low",
+    "relative_strength",
 ]

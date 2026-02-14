@@ -23,6 +23,7 @@ def config() -> Config:
         portfolio_table="test-portfolio",
         system_table="test-system",
         tiingo_api_key="test-key",
+        fred_api_key="",
         telegram_bot_token="",
         telegram_chat_id="",
         environment="test",
@@ -445,7 +446,7 @@ class TestS3Operations:
         mock_s3.put_object.assert_called_once()
         call_kwargs = mock_s3.put_object.call_args[1]
         assert call_kwargs["Bucket"] == "test-bucket"
-        assert call_kwargs["Key"] == "raw/AAPL/2024-01-02_2024-01-03.parquet"
+        assert call_kwargs["Key"] == "raw/AAPL/daily/2024-01-02_2024-01-03.parquet"
         assert len(call_kwargs["Body"]) > 0
 
     def test_save_to_s3_client_error(self, config: Config, sample_df: pd.DataFrame) -> None:

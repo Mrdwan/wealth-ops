@@ -1,6 +1,7 @@
 """Feature Engine — orchestrates technical indicator computation.
 
-Computes all 11 base features (or 13 with volume) for a given OHLCV DataFrame.
+Computes all 11 base features (or 13 with volume, 14 with benchmark)
+for a given OHLCV DataFrame.
 This is the single entry point for feature computation in the signal pipeline.
 """
 
@@ -11,6 +12,7 @@ from src.modules.features.indicators.momentum import macd_histogram, obv, rsi
 from src.modules.features.indicators.price import distance_from_low
 from src.modules.features.indicators.trend import adx, ema, ema_fan
 from src.modules.features.indicators.volatility import atr
+from src.modules.features.indicators.relative_strength import relative_strength
 from src.modules.features.indicators.volume import volume_ratio
 from src.shared.logger import get_logger
 
@@ -38,6 +40,7 @@ class FeatureEngine:
         self,
         df: pd.DataFrame,
         volume_features: bool = True,
+        benchmark_df: pd.DataFrame | None = None,
     ) -> pd.DataFrame:
         """Compute all technical features for the input OHLCV data.
 
@@ -47,12 +50,16 @@ class FeatureEngine:
             volume_features: If True, include OBV and Volume Ratio
                 (for EQUITY profiles). If False, skip them
                 (for COMMODITY_HAVEN/FOREX profiles).
+            benchmark_df: Optional benchmark OHLCV DataFrame for Relative
+                Strength computation. Must have a 'close' column with
+                date-aligned index. If None, RS is skipped.
 
         Returns:
             New DataFrame with all original columns plus feature columns.
             Feature columns: rsi_14, ema_8, ema_20, ema_50, macd_hist,
             adx_14, atr_14, upper_wick, lower_wick, ema_fan, dist_from_low.
             If volume_features=True: also obv, volume_ratio.
+            If benchmark_df provided: also rs_zscore.
 
         Raises:
             ValueError: If required columns are missing or data is too short.
@@ -78,17 +85,22 @@ class FeatureEngine:
         result["ema_fan"] = ema_fan(df["close"])
         result["dist_from_low"] = distance_from_low(df["close"], df["low"], period=20)
 
+        feature_count = 11
+
         # Class-specific features (EQUITY only)
         if volume_features:
             result["obv"] = obv(df["close"], df["volume"])
             result["volume_ratio"] = volume_ratio(df["volume"])
-            logger.info(
-                f"Computed 13 features (with volume) for {len(df)} bars"
-            )
-        else:
-            logger.info(
-                f"Computed 11 features (no volume) for {len(df)} bars"
-            )
+            feature_count += 2
+
+        # Relative Strength (when benchmark provided)
+        if benchmark_df is not None and "close" in benchmark_df.columns:
+            # Align benchmark to asset dates
+            aligned_benchmark = benchmark_df["close"].reindex(df.index)
+            result["rs_zscore"] = relative_strength(df["close"], aligned_benchmark)
+            feature_count += 1
+
+        logger.info(f"Computed {feature_count} features for {len(df)} bars")
 
         return result
 

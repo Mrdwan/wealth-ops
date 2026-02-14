@@ -10,6 +10,7 @@ from src.lambdas.data_ingestion import get_enabled_tickers
 from src.lambdas.data_ingestion import handler as data_ingestion_handler
 from src.lambdas.market_pulse import handler as market_pulse_handler
 from src.modules.regime.filter import MarketStatus
+from src.shared.profiles import AssetProfile
 
 
 @pytest.fixture
@@ -150,8 +151,10 @@ def test_get_enabled_tickers_skips_disabled(mock_boto3_client: MagicMock) -> Non
 
     result = get_enabled_tickers("test-config", "us-east-1")
 
-    assert result == ["AAPL"]
-    assert "DISABLED" not in result
+    assert len(result) == 1
+    ticker, profile = result[0]
+    assert ticker == "AAPL"
+    assert isinstance(profile, AssetProfile)
 
 
 @patch("src.lambdas.data_ingestion.boto3.client")
@@ -171,7 +174,8 @@ def test_get_enabled_tickers_skips_items_without_ticker(mock_boto3_client: Magic
 
     result = get_enabled_tickers("test-config", "us-east-1")
 
-    assert result == ["AAPL"]
+    assert len(result) == 1
+    assert result[0][0] == "AAPL"
 
 
 @patch("src.lambdas.data_ingestion.boto3.client")

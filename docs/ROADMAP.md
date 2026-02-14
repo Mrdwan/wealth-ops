@@ -22,31 +22,31 @@
 
 ### ← v3.0 ADDITIONS TO PHASE 1 →
 
-- [ ] **Step 1.6: Tiingo Forex Integration (Gold/Silver).** ← NEW
-  - Add XAU/USD and XAG/USD to Tiingo data pipeline as **forex instruments** (not GLD ETF).
-  - Tiingo covers 40+ FX tickers from tier-1 banks — no separate provider needed.
-  - Daily OHLCV bars. Cross-reference with Tiingo GLD ETF price (>2% divergence = alert).
+- [x] **Step 1.6: Tiingo Forex Integration (Gold/Silver).** ← NEW
+  - `TiingoForexProvider` class for XAU/USD, XAG/USD via Tiingo Forex API.
+  - Daily OHLC bars (volume=0 for forex). Cross-reference with GLD ETF price (>2% divergence = alert).
   - Store in `s3://wealth-ops-data/ohlcv/forex/XAUUSD/daily/`.
 
-- [ ] **Step 1.7: FRED Macro Data Pipeline.** ← NEW
+- [x] **Step 1.7: FRED Macro Data Pipeline.** ← NEW
+  - `MacroDataProvider` protocol + `FredProvider` class + `MacroDataManager` orchestrator.
   - Ingest: VIX (`VIXCLS`), Yield Curve (`T10Y2Y`), Fed Funds (`FEDFUNDS`), CPI (`CPIAUCSL`).
   - Store in `s3://wealth-ops-data/ohlcv/macro/`.
-  - Staleness Policy: If >24h stale, corresponding guards default to FAIL.
+  - Per-series staleness: daily=24h, monthly=35d. Stale → guards default to FAIL.
 
-- [ ] **Step 1.8: DXY Index Data.** ← NEW
-  - Source: Tiingo (UUP ETF proxy) or Yahoo (DX-Y.NYB).
-  - Required for: COMMODITY_HAVEN regime gate (`DXY < 200 SMA`), Relative Strength benchmark.
-  - Store in `s3://wealth-ops-data/ohlcv/indices/DXY/daily/`.
+- [x] **Step 1.8: DXY Index Data.** ← NEW
+  - Source: Tiingo (UUP ETF proxy). Uses existing `TiingoProvider`.
+  - Store in `s3://wealth-ops-data/ohlcv/indices/UUP/daily/`.
 
-- [ ] **Step 1.9: Asset Profile Schema v3.** ← NEW
-  - Extend DynamoDB:Config with new fields: `macro_event_guard`, `broker`, `tax_rate`, `data_source`.
-  - Pre-populate EQUITY, COMMODITY_HAVEN, COMMODITY_CYCLICAL profiles per ARCHITECTURE.md Section 5.
-  - COMMODITY_HAVEN now points to Tiingo Forex source + IG broker + 0% tax rate.
+- [x] **Step 1.9: Asset Profile Schema v3.** ← NEW
+  - `AssetProfile` frozen dataclass with `from_dynamodb_item()` + `to_dynamodb_item()` + `s3_prefix()`.
+  - Pre-built templates: EQUITY, COMMODITY_HAVEN, COMMODITY_CYCLICAL, INDEX.
+  - Profile-aware data ingestion: routes tickers to correct provider + S3 path.
+  - Seed script: `scripts/seed_profiles.py`.
 
-- [ ] **Step 1.10: Two-Way Telegram Commands.** ← NEW
-  - Upgrade from one-way pulse to full command interface.
-  - Implement: `/status`, `/portfolio`, `/risk`, `/help`.
-  - Lambda Function URL as webhook endpoint (no API Gateway cost).
+- [x] **Step 1.10: Two-Way Telegram Commands.** ← NEW
+  - Lambda Function URL webhook handler with command routing.
+  - Commands: `/status`, `/portfolio`, `/risk`, `/help`.
+  - Chat ID security validation. `send_reply()` method on TelegramNotifier.
   - Signal execution commands (`/executed`, `/skip`, `/close`) added in Phase 3.
 
 ---
@@ -54,14 +54,14 @@
 ## 🟢 Phase 2A: Momentum Composite (NEW — Academic Baseline)
 > **Goal:** Deploy the academically-backed momentum signal FIRST as the baseline. This runs before XGBoost and provides a signal even without ML.
 
-- [ ] **Step 2A.1: Base Technical Feature Engine.**
-  - Implement on 1-Day candles: RSI(14), EMA_8, EMA_20, EMA_50, MACD Histogram, ADX(14), ATR(14), Upper Wick Ratio, Lower Wick Ratio, EMA Fan, Distance from 20d Low.
+- [x] **Step 2A.1: Base Technical Feature Engine.**
+  - `FeatureEngine` class with 11 base indicators: RSI(14), EMA_8/20/50, MACD Histogram, ADX(14), ATR(14), Upper/Lower Wick Ratios, EMA Fan, Distance from 20d Low.
   - Edge case: `(High - Low) == 0` → both wick ratios = `0.0`.
   - Profile-agnostic: 11 features computed for every asset.
 
-- [ ] **Step 2A.2: Class-Specific Features.**
+- [x] **Step 2A.2: Class-Specific Features.**
   - OBV + Volume Ratio: only when `volume_features = true` (EQUITY).
-  - Relative Strength: `rs_ratio = (Asset_Close / Benchmark_Close)`, z-scored. Benchmark per profile (SPY for equities, DXY for commodities).
+  - Relative Strength: z-scored `asset_close / benchmark_close` ratio. Benchmark per profile (SPY for equities, UUP for commodities).
   - Feature count: 14 (EQUITY), 12 (COMMODITY_HAVEN/FOREX).
 
 - [ ] **Step 2A.3: Momentum Composite Score.**

@@ -19,6 +19,7 @@ class Config:
         portfolio_table: DynamoDB table for current positions.
         system_table: DynamoDB table for system state.
         tiingo_api_key: API key for Tiingo market data.
+        fred_api_key: API key for FRED economic data.
         telegram_bot_token: Telegram bot authentication token.
         telegram_chat_id: Target Telegram chat for notifications.
         environment: Current environment (dev/prod).
@@ -31,6 +32,7 @@ class Config:
     portfolio_table: str
     system_table: str
     tiingo_api_key: str
+    fred_api_key: str
     telegram_bot_token: str
     telegram_chat_id: str
     environment: str
@@ -55,6 +57,7 @@ def load_config() -> Config:
         portfolio_table=os.getenv("PORTFOLIO_TABLE", f"wealth-ops-portfolio-{env}"),
         system_table=os.getenv("SYSTEM_TABLE", f"wealth-ops-system-{env}"),
         tiingo_api_key=os.getenv("TIINGO_API_KEY", ""),
+        fred_api_key=os.getenv("FRED_API_KEY", ""),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
         environment=env,

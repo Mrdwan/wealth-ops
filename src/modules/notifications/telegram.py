@@ -150,6 +150,38 @@ class TelegramNotifier:
 
 Have a great trading day\\!"""
 
+    def send_reply(self, chat_id: str, text: str) -> bool:
+        """Send a reply to a specific chat.
+
+        Used by the webhook handler for two-way command responses.
+
+        Args:
+            chat_id: Telegram chat ID to reply to.
+            text: Message text (plain text, no markdown).
+
+        Returns:
+            True if sent successfully.
+        """
+        if not self._config.telegram_bot_token:
+            logger.warning("Telegram bot token not configured, skipping reply")
+            return False
+
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(
+                    f"{self._api_url}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": text,
+                    },
+                )
+                response.raise_for_status()
+                logger.info(f"Reply sent to chat {chat_id}")
+                return True
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to send Telegram reply: {e}")
+            return False
+
     def _send_message(self, text: str) -> bool:
         """Send message via Telegram Bot API.
 

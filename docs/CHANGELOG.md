@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 1 v3 Data Pipelines (Steps 1.6–1.10)
+- **Asset Profile Schema v3** (`src/shared/profiles.py`): `AssetProfile` frozen dataclass with 4 templates (EQUITY, COMMODITY_HAVEN, COMMODITY_CYCLICAL, INDEX), DynamoDB serialization, and S3 prefix routing.
+- **Seed script** (`scripts/seed_profiles.py`): Idempotent DynamoDB seeder for 9 tickers (5 equities, 2 indices, 2 commodities).
+- **Tiingo Forex Provider** (`src/modules/data/providers/tiingo_forex.py`): `TiingoForexProvider` for XAU/USD and XAG/USD via Tiingo FX endpoint (`resampleFreq=1day`, volume=0, adjusted_close=close).
+- **FRED Macro Pipeline**: `MacroDataProvider` protocol, `FredProvider`, and `MacroDataManager` with per-series staleness thresholds (daily series=24h, monthly=35d). Series: VIXCLS, T10Y2Y, FEDFUNDS, CPIAUCSL.
+- **DXY via UUP**: UUP ETF added to seed script with INDEX profile — uses existing TiingoProvider, zero new code.
+- **Two-Way Telegram Commands**: Lambda Function URL webhook (`src/lambdas/telegram_webhook.py`), command handlers (`/status`, `/portfolio`, `/risk`, `/help`), `send_reply()` method, chat ID security validation.
+- **Relative Strength Feature** (`src/modules/features/indicators/relative_strength.py`): Z-scored asset/benchmark price ratio (20-day rolling window). Feature counts: EQUITY=14, COMMODITY_HAVEN=12.
+
+### Changed
+- `Config` dataclass: added `fred_api_key` field.
+- `DataManager.ingest()`: added `s3_prefix` parameter for profile-based S3 path routing.
+- `data_ingestion.py`: `get_enabled_tickers()` now returns `list[tuple[str, AssetProfile]]` for profile-aware routing.
+- `FeatureEngine.compute()`: added optional `benchmark_df` parameter for relative strength calculation.
+
+### Tests
+- **209 tests passing** (added 73 new tests across 8 test files).
+- **97% overall coverage** — uncovered lines limited to:
+  - `macro_manager.py`: S3 save error paths (operational edge cases)
+  - `commands.py` / `telegram.py`: DynamoDB error handling branches and `send_reply()` method (require integration tests)
+
 ## [3.0.0] - 2026-02-12
 
 ### Added — Broker & Tax Strategy
