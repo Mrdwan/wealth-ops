@@ -327,7 +327,7 @@ Non-negotiable. If **any applicable** guard is RED, we stay in CASH.
 |---|-------|-------|------|-----------|-------------|
 | 1 | **Macro Gate** | Market | Regime_Index vs SMA(200) | `regime_dir != ANY` | Halt buying for this class |
 | 2 | **Panic Guard** | Market | `VIX_Close < 30` | `vix_guard = true` | Halt buying for flagged assets |
-| 3 | **Exposure Cap** | Portfolio | `count(open_positions) < 4` | Always | Halt all buying |
+| 3 | **Exposure Cap** | Portfolio | `count(open_positions) < max_positions` (per Section 9.1 capital tier) | Always | Halt all buying |
 | 4 | **Trend Gate** | Per Asset | `ADX_14 > 20` | Always | Skip asset |
 | 5 | **Event Guard** | Per Asset | `Days_to_Earnings >= 7` | `event_guard = true` | Skip asset |
 | 6 | **Macro Event Guard** | Per Asset | `Days_to_FOMC/NFP >= 2` | `macro_event_guard = true` | Skip asset | ← **NEW v3** |
@@ -342,7 +342,7 @@ Only evaluated if all applicable Hard Guards pass.
 ### D. The Portfolio Guard (Risk Management)
 1. **Concentration Limit:** Max 1 position per group. Highest probability wins ties.
 2. **Position Cap:** `min(ATR_Size, Portfolio × 0.15 / Entry_Price)`.
-3. **News Veto (LLM):** DeepSeek-V3 or Gemini Flash. Only for signals that survive all prior gates.
+3. **News Veto (LLM):** Deferred to Phase 6. Not part of the active guard chain until spec is written and validated.
 
 ### E. The "Trap Order" Execution
 Carried forward from v2.0:
@@ -353,7 +353,7 @@ Carried forward from v2.0:
 - **Trailing:** Chandelier Stop at `Highest_High - (2 × ATR_14)`.
 - **Stop Loss:** Market order at `Entry - (2 × ATR_14)`.
 - **Time Stop:** Close after 10 trading days.
-- **TTL:** EQUITY/COMMODITY = 1 session. FOREX = 24 hours.
+- **TTL:** EQUITY (IBKR) = 1 US market session (09:30–16:00 ET). COMMODITY/IG spread bet = expires at next 23:00 UTC data ingest (effectively ~24h since IG gold trades ~23h/day). FOREX = 24 clock hours.
 
 ---
 
@@ -379,8 +379,8 @@ v2.0 had a static Exposure Cap (4 positions × 2% = 8% max heat). v3.0 adds **dy
 | >15% | **HALT ALL TRADING.** No new entries. Review entire system. | Manual resume only after review |
 
 ### 9.3 Correlation Controls (NEW in v3.0)
-- Rolling 60-day correlation matrix across all open + candidate positions.
-- **Correlation limit: 0.70.** No new position if correlated >0.70 with any existing position.
+- Rolling 60-day correlation matrix of **daily price returns** across all open + candidate asset tickers (not position P&L — positions are too short-lived for meaningful correlation).
+- **Correlation limit: 0.70.** No new position if its underlying asset's returns are correlated >0.70 with any existing position's underlying asset over the trailing 60 days.
 - Cross-asset correlation tracked: if Gold and Stocks become unusually correlated (>0.60), flag regime anomaly.
 
 ### 9.4 Portfolio State Tracking (DynamoDB)
@@ -442,6 +442,7 @@ Minimum periods: 10+ (5+ years of data)
 - Gap-throughs = missed signal.
 - Stop loss executes at market open on gap-down (slippage simulation).
 - Dual-constraint sizing.
+- **IG Overnight Funding (spread bet positions):** Deduct ~0.008% per night for gold/commodity positions held on IG. Over a 10-day hold this is ~0.08% drag. Source from IG's published funding rates at backtest time. Without this, gold backtest P&L is systematically optimistic.
 
 ### 11.3 Statistical Validation (NEW)
 
@@ -463,7 +464,7 @@ Minimum periods: 10+ (5+ years of data)
 | Total Trades | > 100 | — |
 
 ### 11.5 Paper Trading Validation
-- **Duration:** Minimum 3 months, minimum 30 trades.
+- **Duration:** Minimum 3 months, minimum 20 trades.
 - **Track:** Signal accuracy vs backtest, slippage, miss rate, emotional overrides.
 - **Pass:** Live results within 1σ of backtest. No systematic slippage > 0.3%.
 

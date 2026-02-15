@@ -95,13 +95,20 @@
   - Store `next_macro_event_date` for `macro_event_guard = true` assets.
   - Guard: `Days_to_FOMC/NFP >= 2`.
 
-- [ ] **Step 2B.3: The "One-Asset, One-Model" Pipeline.**
+- [ ] **Step 2B.3: Walk-Forward Framework + Execution Simulator.** ← MOVED FROM PHASE 2.5
+  - Build the backtesting infrastructure BEFORE training XGBoost. Validate it against Momentum Composite first.
+  - Walk-forward: 3-year expanding train, 6-month test, roll forward. Min 10 periods.
+  - Execution simulator: Full Trap Order logic, gap-throughs, slippage, IG overnight funding costs.
+  - Profile-aware: reads each asset's profile for correct guards, features, regime logic.
+  - **Gate:** Framework must produce sensible results on Momentum Composite before proceeding to XGBoost.
+
+- [ ] **Step 2B.4: The "One-Asset, One-Model" Pipeline.**
   - Fargate Task: Pull data → Read profile → Compute feature vector → Train XGBoost → Save to S3.
   - Target: `High > Close + 3%` within 5 trading days.
   - Feature vector: determined by profile (14 or 12 features).
   - Calibration: Platt Scaling post-training. Validate per profile class.
 
-- [ ] **Step 2B.4: Dual Signal Comparison.**
+- [ ] **Step 2B.5: Dual Signal Comparison.**
   - Run Momentum Composite AND XGBoost in parallel.
   - Log both scores for every asset every day (even when no signal fires).
   - Signal cards show both: "Momentum: 1.9σ | XGBoost: 82%".
@@ -109,40 +116,31 @@
 
 ---
 
-## 🔴 Phase 2.5: The Proving Ground (Backtesting, Enhanced for v3)
+## 🔴 Phase 2.5: The Proving Ground (Statistical Validation)
+> Walk-Forward Framework and Execution Simulator were moved to Step 2B.3 (must be built before XGBoost training).
 
-- [ ] **Step 2.5.1: Walk-Forward Optimization.** ← NEW
-  - Training window: 3 years (expanding). Test window: 6 months. Roll forward 6 months.
-  - Minimum 10 walk-forward periods (requires 5+ years of data).
-  - Walk-Forward Efficiency > 50% required.
-
-- [ ] **Step 2.5.2: Execution-Realistic Simulator (From v2).**
-  - Full Trap Order logic: entry only if next day's High > Signal Candle High + (0.02 × ATR_14).
-  - Gap-throughs = missed signal. Stop loss at market open on gap-down (slippage sim).
-  - Dual-constraint sizing: `min(ATR_Size, 15% portfolio cap)`.
-  - **Profile-Aware:** Reads each asset's profile for correct guards, features, regime logic.
-
-- [ ] **Step 2.5.3: Monte Carlo Validation.** ← NEW
+- [ ] **Step 2.5.1: Monte Carlo Validation.** ← NEW
   - 10,000 bootstrap iterations of trade returns.
   - 5th percentile of terminal wealth must be positive.
   - Shuffled-price test: strategy must fail on randomly permuted returns (p < 0.01).
 
-- [ ] **Step 2.5.4: Overfitting Detection.** ← NEW
+- [ ] **Step 2.5.2: Overfitting Detection.** ← NEW
   - t-statistic > 2.0 required for signal significance.
   - Red flags: Sharpe > 3.0, Profit Factor > 2.5, Max DD < 5%, Win Rate > 75%.
   - If any red flag triggers: review, do not deploy.
 
-- [ ] **Step 2.5.5: Calibration Validation.**
+- [ ] **Step 2.5.3: Calibration Validation.**
   - Reliability diagrams per profile class.
   - If calibration curve deviates >10% from diagonal at 0.75 threshold → recalibrate.
 
-- [ ] **Step 2.5.6: Cross-Class Portfolio Sim.**
+- [ ] **Step 2.5.4: Cross-Class Portfolio Sim.**
   - Test mixed portfolios: 2 equities + 1 Gold (XAU/USD).
   - Validate diversification benefit of RISK_ON + RISK_OFF positions.
   - Run with both Momentum-only AND Momentum+XGBoost to measure ML's marginal contribution.
 
-- [ ] **Step 2.5.7: Paper Trading Gate.**
-  - Minimum 3 months, minimum 30 trades.
+- [ ] **Step 2.5.5: Paper Trading Gate.**
+  - Minimum 3 months, minimum 20 trades (adjusted from 30 — with strict guards and 9 tickers, expect 1-3 signals/month; 30 trades in 3 months is unrealistic without lowering guard quality).
+  - Live results within 1σ of backtest.
   - Live results within 1σ of backtest.
   - Slippage < 0.3%. Miss rate < 20%.
   - **Gate:** If backtest fails for any active profile class, do NOT activate that class in Phase 3.
@@ -170,8 +168,8 @@
 - [ ] **Step 3.3: Portfolio Guard.**
   - Concentration Limit: Max 1 per group. Highest probability wins.
   - Position Cap: `min(ATR_Size, Portfolio × 0.15 / Entry_Price)`.
-  - **Correlation Check (NEW):** Rolling 60-day correlation. No new position if >0.70 correlated with existing.
-  - News Veto (LLM): DeepSeek-V3 or Gemini Flash.
+  - **Correlation Check (NEW):** Rolling 60-day correlation of daily price returns. No new position if >0.70 correlated with any existing.
+  - News Veto: **Deferred to Phase 6.3** (needs full spec before implementation).
 
 - [ ] **Step 3.4: Dynamic Risk Management.** ← NEW
   - Portfolio state tracking in DynamoDB (cash, equity, peak, drawdown, risk_status).
@@ -265,6 +263,12 @@
 - [ ] **Step 6.2: Modular Asset Config.**
   - Script to add/remove tickers with profile assignment.
   - Validates required data feeds are active for selected profile.
+
+- [ ] **Step 6.3: News Veto (LLM Guard).** ← DEFERRED FROM PHASE 3
+  - Spec required: what news source, what prompt, what constitutes a veto, latency budget, fallback when API is down.
+  - Candidate models: DeepSeek-V3 or Gemini Flash (cheap, fast).
+  - Only activates for signals that survive all other guards.
+  - Must not block the pipeline if the LLM API is unreachable (default: no veto).
 
 ---
 
