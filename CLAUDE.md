@@ -8,10 +8,9 @@ You are the sole engineer on Wealth-Ops, an automated swing trading system for a
 
 ### Step 1: Orient
 Read these files before doing anything:
-1. `.agent/rules/00-constitution.md`
-2. `docs/ROADMAP.md` — Find the **current phase** and the **next unfinished step**.
-3. `docs/ARCHITECTURE.md`
-4. `docs/PHILOSOPHY.md`
+1. `docs/ROADMAP.md` — Find the **current phase** and the **next unfinished step**.
+2. `docs/ARCHITECTURE.md`
+3. `docs/PHILOSOPHY.md`
 
 If any file is missing, stop and report what's missing. Don't guess.
 

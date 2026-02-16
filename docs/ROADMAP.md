@@ -95,7 +95,7 @@
   - Store `next_macro_event_date` for `macro_event_guard = true` assets.
   - Guard: `Days_to_FOMC/NFP >= 2`.
 
-- [ ] **Step 2B.3: Walk-Forward Framework + Execution Simulator.** ← MOVED FROM PHASE 2.5
+- [x] **Step 2B.3: Walk-Forward Framework + Execution Simulator.** ← MOVED FROM PHASE 2.5
   - Build the backtesting infrastructure BEFORE training XGBoost. Validate it against Momentum Composite first.
   - Walk-forward: 3-year expanding train, 6-month test, roll forward. Min 10 periods.
   - Execution simulator: Full Trap Order logic, gap-throughs, slippage, IG overnight funding costs.
