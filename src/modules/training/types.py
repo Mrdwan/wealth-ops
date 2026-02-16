@@ -14,6 +14,7 @@ class TrainingConfig:
     objective: str = "binary:logistic"
     eval_metric: str = "logloss"
     scale_pos_weight: float = 1.0  # Balance handling
+    gamma: float = 0.0             # Tree split threshold
     
     # Target definition
     target_window: int = 5         # Look ahead 5 days

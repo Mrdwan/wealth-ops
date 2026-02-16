@@ -102,13 +102,19 @@
   - Profile-aware: reads each asset's profile for correct guards, features, regime logic.
   - **Gate:** Framework must produce sensible results on Momentum Composite before proceeding to XGBoost.
 
-- [ ] **Step 2B.4: The "One-Asset, One-Model" Pipeline.**
+- [x] **Step 2B.4: The "One-Asset, One-Model" Pipeline.**
   - Fargate Task: Pull data → Read profile → Compute feature vector → Train XGBoost → Save to S3.
   - Target: `High > Close + 3%` within 5 trading days.
   - Feature vector: determined by profile (14 or 12 features).
   - Calibration: Platt Scaling post-training. Validate per profile class.
 
-- [ ] **Step 2B.5: Dual Signal Comparison.**
+- [x] **Step 2B.5: Hyperparameter Optimization.**
+  - Added `optuna` dependency.
+  - Implemented `HyperparameterTuner` class.
+  - Created `scripts/tune_spy.py` for manual tuning.
+  - Tunable parameters: `max_depth`, `learning_rate`, `gamma`, `subsample`, `scale_pos_weight`.
+
+- [ ] **Step 2B.6: Dual Signal Comparison.**
   - Run Momentum Composite AND XGBoost in parallel.
   - Log both scores for every asset every day (even when no signal fires).
   - Signal cards show both: "Momentum: 1.9σ | XGBoost: 82%".

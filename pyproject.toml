@@ -26,6 +26,7 @@ pandas-stubs = "^3.0.0.260204"
 types-requests = "^2.32.4.20260107"
 xgboost = "^2.0"
 scikit-learn = ">=1.4,<1.6"
+optuna = "^3.5"
 
 [tool.poetry.group.infra.dependencies]
 aws-cdk-lib = "^2.120"

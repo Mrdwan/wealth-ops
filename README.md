@@ -43,6 +43,20 @@ The system operates as a **notification-first advisory pipeline** on AWS:
 
 ---
 
+## 🚀 Setup & Requirements
+
+1.  **Environment Variables:** Create a `.env` file with the following keys:
+    *   `TIINGO_API_KEY`: For stock and forex data.
+    *   `FRED_API_KEY`: For macroeconomic data (VIX, Treasury Yields). Get a free key [here](https://fred.stlouisfed.org/docs/api/api_key.html).
+    *   `TELEGRAM_BOT_TOKEN`: For notifications.
+    *   `TELEGRAM_CHAT_ID`: Your chat ID.
+
+2.  **Dependencies:**
+    *   Python 3.13+
+    *   Docker & Docker Compose (for dev environment)
+
+---
+
 ## 📂 Project Structure
 
 ```text
